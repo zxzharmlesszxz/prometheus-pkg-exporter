@@ -1,0 +1,10 @@
+dist/
+build/
+prometheus-*-exporter
+*.test
+*.out
+coverage.txt
+coverage.out
+.DS_Store
+.idea/
+.vscode/

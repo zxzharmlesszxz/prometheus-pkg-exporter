@@ -1,0 +1,34 @@
+Package: bash
+Status: install ok installed
+Version: 5.2
+Architecture: amd64
+
+Package: coreutils
+Status: install ok installed
+Version: 9.1
+Architecture: amd64
+
+Package: base-files
+Status: install ok installed
+Version: 12.9
+Architecture: amd64
+
+Package: openssl
+Status: install ok installed
+Version: 3.0.16
+Architecture: amd64
+
+Package: broken-unpacked
+Status: install ok unpacked
+Version: 1.0
+Architecture: amd64
+
+Package: half-configured
+Status: install ok half-configured
+Version: 1.0
+Architecture: amd64
+
+Package: removed-package
+Status: deinstall ok config-files
+Version: 1.0
+Architecture: amd64

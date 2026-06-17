@@ -1,0 +1,16 @@
+# Exporter config keys:
+# - command_timeout: 15s
+# - reboot_required_path: /run/reboot-required
+# - status_database_path: /var/lib/dpkg/status
+# - apt_lists_path: /var/lib/apt/lists
+#
+# Example with host-mounted package state inside a container:
+# command_timeout: 15s
+# reboot_required_path: /host/run/reboot-required
+# status_database_path: /host/var/lib/dpkg/status
+# apt_lists_path: /host/var/lib/apt/lists
+#
+command_timeout: 15s
+reboot_required_path: /run/reboot-required
+status_database_path: /var/lib/dpkg/status
+apt_lists_path: /var/lib/apt/lists

@@ -1,0 +1,15 @@
+.git
+.gitignore
+.github
+.gitlab-ci.yml
+.idea
+.vscode
+dist
+build
+coverage.out
+coverage.txt
+tmp
+prometheus-*-exporter
+*.test
+*.out
+.DS_Store

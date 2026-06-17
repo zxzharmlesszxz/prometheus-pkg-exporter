@@ -1,0 +1,7 @@
+Package: openssl
+Version: 3.0.17
+Architecture: amd64
+
+Package: bash
+Version: 5.3
+Architecture: amd64

@@ -1,0 +1,103 @@
+---
+
+image: golang:1.26.3-alpine
+
+before_script:
+  - apk add --no-cache bash build-base ca-certificates git make
+
+variables:
+  PROJECT_NAME: "${CI_PROJECT_NAME}"
+  RELEASE_PLATFORMS: "linux/amd64 linux/arm64"
+  DOCKER_PLATFORMS: "linux/amd64,linux/arm64"
+
+stages:
+  - test
+  - build
+  - integration
+  - release
+  - publish
+
+test:
+  stage: test
+  script:
+    - VERSION_VALUE="${CI_COMMIT_TAG:-${CI_COMMIT_REF_NAME:-dev}}"
+    - BRANCH_VALUE="${CI_COMMIT_BRANCH:-${CI_COMMIT_REF_NAME:-detached}}"
+    - REVISION_VALUE="${CI_COMMIT_SHORT_SHA:-${CI_COMMIT_SHA:-dev}}"
+    - BUILD_USER_VALUE="${GITLAB_USER_LOGIN:-gitlab-ci}"
+    - BUILD_DATE_VALUE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    - make go-check VERSION="${VERSION_VALUE}" BRANCH="${BRANCH_VALUE}" REVISION="${REVISION_VALUE}" BUILD_USER="${BUILD_USER_VALUE}" BUILD_DATE="${BUILD_DATE_VALUE}"
+
+compile:
+  stage: build
+  script:
+    - VERSION_VALUE="${CI_COMMIT_TAG:-${CI_COMMIT_REF_NAME:-dev}}"
+    - BRANCH_VALUE="${CI_COMMIT_BRANCH:-${CI_COMMIT_REF_NAME:-detached}}"
+    - REVISION_VALUE="${CI_COMMIT_SHORT_SHA:-${CI_COMMIT_SHA:-dev}}"
+    - BUILD_USER_VALUE="${GITLAB_USER_LOGIN:-gitlab-ci}"
+    - BUILD_DATE_VALUE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    - make build VERSION="${VERSION_VALUE}" BRANCH="${BRANCH_VALUE}" REVISION="${REVISION_VALUE}" BUILD_USER="${BUILD_USER_VALUE}" BUILD_DATE="${BUILD_DATE_VALUE}"
+  artifacts:
+    name: "$PROJECT_NAME-$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA"
+    paths:
+      - dist/
+    expire_in: 1 week
+
+docker-check:
+  stage: integration
+  image: docker:27
+  services:
+    - docker:27-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    DOCKER_DRIVER: overlay2
+  before_script:
+    - apk add --no-cache make
+  script:
+    - VERSION_VALUE="${CI_COMMIT_TAG:-${CI_COMMIT_REF_NAME:-dev}}"
+    - BRANCH_VALUE="${CI_COMMIT_BRANCH:-${CI_COMMIT_REF_NAME:-detached}}"
+    - REVISION_VALUE="${CI_COMMIT_SHORT_SHA:-${CI_COMMIT_SHA:-dev}}"
+    - BUILD_USER_VALUE="${GITLAB_USER_LOGIN:-gitlab-ci}"
+    - BUILD_DATE_VALUE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    - make examples-check
+    - make docker-smoke SMOKE_DOCKER_IMAGE="$PROJECT_NAME:make-smoke"
+
+release:
+  stage: release
+  rules:
+    - if: $CI_COMMIT_TAG
+  script:
+    - VERSION_VALUE="${CI_COMMIT_TAG:-${CI_COMMIT_REF_NAME:-dev}}"
+    - BRANCH_VALUE="${CI_COMMIT_BRANCH:-${CI_COMMIT_REF_NAME:-detached}}"
+    - REVISION_VALUE="${CI_COMMIT_SHORT_SHA:-${CI_COMMIT_SHA:-dev}}"
+    - BUILD_USER_VALUE="${GITLAB_USER_LOGIN:-gitlab-ci}"
+    - BUILD_DATE_VALUE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    - make release-smoke VERSION="${VERSION_VALUE}" BRANCH="${BRANCH_VALUE}" REVISION="${REVISION_VALUE}" BUILD_USER="${BUILD_USER_VALUE}" BUILD_DATE="${BUILD_DATE_VALUE}" PLATFORMS="$RELEASE_PLATFORMS"
+  artifacts:
+    name: "$PROJECT_NAME-$CI_COMMIT_TAG"
+    paths:
+      - dist/
+    expire_in: 1 month
+
+docker-publish:
+  stage: publish
+  image: docker:27
+  services:
+    - docker:27-dind
+  variables:
+    DOCKER_HOST: tcp://docker:2375
+    DOCKER_TLS_CERTDIR: ""
+    DOCKER_DRIVER: overlay2
+  rules:
+    - if: $CI_COMMIT_TAG
+  before_script:
+    - apk add --no-cache make
+    - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
+    - docker buildx create --use --name ci-builder || docker buildx use ci-builder
+  script:
+    - VERSION_VALUE="${CI_COMMIT_TAG:-${CI_COMMIT_REF_NAME:-dev}}"
+    - BRANCH_VALUE="${CI_COMMIT_BRANCH:-${CI_COMMIT_REF_NAME:-detached}}"
+    - REVISION_VALUE="${CI_COMMIT_SHORT_SHA:-${CI_COMMIT_SHA:-dev}}"
+    - BUILD_USER_VALUE="${GITLAB_USER_LOGIN:-gitlab-ci}"
+    - BUILD_DATE_VALUE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+    - make docker-buildx-push VERSION="${VERSION_VALUE}" BRANCH="${BRANCH_VALUE}" REVISION="${REVISION_VALUE}" BUILD_USER="${BUILD_USER_VALUE}" BUILD_DATE="${BUILD_DATE_VALUE}" DOCKER_IMAGE="$CI_REGISTRY_IMAGE:$CI_COMMIT_TAG" DOCKER_PLATFORMS="$DOCKER_PLATFORMS"

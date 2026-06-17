@@ -1,0 +1,112 @@
+groups:
+  - name: prometheus-pkg-exporter
+    rules:
+      - alert: PkgExporterDown
+        expr: up{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 0
+        for: 5m
+        labels:
+          severity: critical
+        annotations:
+          summary: Package exporter is down ({{ $labels.instance }})
+          description: |
+            Prometheus cannot scrape prometheus-pkg-exporter for at least 5 minutes.
+
+      - alert: PkgExporterCollectionFailed
+        expr: pkg_exporter_last_collection_success{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 0
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Package exporter collection is failing ({{ $labels.instance }})
+          description: |
+            prometheus-pkg-exporter has not completed a successful collection for at least 10 minutes.
+
+      - alert: PkgExporterCollectionStale
+        expr: time() - (pkg_exporter_last_successful_collection_timestamp_seconds{job=~"^(prometheus[_-])?pkg[_-]exporter$"} > 0) > 300
+        for: 10m
+        labels:
+          severity: warning
+        annotations:
+          summary: Package exporter collection is stale ({{ $labels.instance }})
+          description: |
+            prometheus-pkg-exporter has not refreshed package data successfully for more than 5 minutes.
+
+      - alert: PkgExporterCollectionSlow
+        expr: histogram_quantile(0.95, sum by (instance, le) (rate(pkg_exporter_package_collection_duration_seconds_bucket{job=~"^(prometheus[_-])?pkg[_-]exporter$"}[15m]))) > 10
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: Package exporter collection is slow ({{ $labels.instance }})
+          description: |
+            The 95th percentile package collection duration is above 10 seconds for at least 15 minutes.
+
+      - alert: PkgExporterPackageIndexCacheMissRateHigh
+        expr: rate(pkg_exporter_package_index_cache_misses_total{job=~"^(prometheus[_-])?pkg[_-]exporter$"}[15m]) > 0.02
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: Package exporter package index cache miss rate is high ({{ $labels.instance }})
+          description: |
+            prometheus-pkg-exporter is reparsing apt package indexes more often than expected.
+
+      - alert: AptPackageIndexCacheMissing
+        expr: pkg_exporter_upgrade_metrics_valid{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 0
+        for: 30m
+        labels:
+          severity: warning
+        annotations:
+          summary: APT package index cache is missing ({{ $labels.instance }})
+          description: |
+            prometheus-pkg-exporter sees no apt package index files in /var/lib/apt/lists. Upgrade-related metrics are unknown until apt cache is populated.
+
+      - alert: AptPackageIndexCacheStale
+        expr: time() - (pkg_exporter_apt_lists_last_modified_timestamp_seconds{job=~"^(prometheus[_-])?pkg[_-]exporter$"} > 0) > 172800 and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 1
+        for: 6h
+        labels:
+          severity: warning
+        annotations:
+          summary: APT package index cache is stale ({{ $labels.instance }})
+          description: |
+            The newest apt package index or release metadata file is older than 48 hours. Upgrade-related metrics may be based on stale apt metadata.
+
+      - alert: AptBrokenPackagesPresent
+        expr: apt_packages_broken_count{job=~"^(prometheus[_-])?pkg[_-]exporter$"} > 0
+        for: 15m
+        labels:
+          severity: warning
+        annotations:
+          summary: Broken Debian packages detected ({{ $labels.instance }})
+          description: |
+            The exporter reports one or more broken packages from apt diagnostics.
+
+      - alert: AptSecurityUpdatesAvailable
+        expr: apt_packages_upgradable_count{category="security", job=~"^(prometheus[_-])?pkg[_-]exporter$"} > 0 and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 1
+        for: 90d
+        labels:
+          severity: warning
+        annotations:
+          summary: Security package updates are available ({{ $labels.instance }})
+          description: |
+            The node has one or more pending security-related package upgrades.
+
+      - alert: AptUpdatesAvailable
+        expr: apt_packages_upgradable_count{category="all", job=~"^(prometheus[_-])?pkg[_-]exporter$"} > 0 and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 1
+        for: 180d
+        labels:
+          severity: info
+        annotations:
+          summary: Debian package updates are available ({{ $labels.instance }})
+          description: |
+            The exporter reports pending package upgrades on the node.
+
+      - alert: RebootRequired
+        expr: os_reboot_required{job=~"^(prometheus[_-])?pkg[_-]exporter$"} > 0
+        for: 30d
+        labels:
+          severity: warning
+        annotations:
+          summary: Node reboot required after package changes ({{ $labels.instance }})
+          description: |
+            The node exposes /run/reboot-required and should be rebooted when operationally safe.

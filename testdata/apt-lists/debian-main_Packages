@@ -1,0 +1,11 @@
+Package: base-files
+Version: 13.0
+Architecture: amd64
+
+Package: bash
+Version: 5.3
+Architecture: amd64
+
+Package: openssl
+Version: 3.0.17
+Architecture: amd64

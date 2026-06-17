@@ -1,0 +1,96 @@
+services:
+  exporter:
+    build:
+      context: .
+      args:
+        PROJECT_NAME: ${PROJECT_NAME:-exporter}
+        LDFLAGS: ${LDFLAGS:-}
+    command:
+      - --web.listen-address=:${COMPOSE_EXPORTER_PORT:-9888}
+      - --${FEATURE_NAME}.config-file=${FEATURE_CONFIG_CONTAINER_PATH:-/etc/prometheus/prometheus-pkg-exporter.yml}
+      - --${FEATURE_NAME}.refresh-interval=30s
+    configs:
+      - source: feature_config
+        target: ${FEATURE_CONFIG_CONTAINER_PATH:-/etc/prometheus/prometheus-pkg-exporter.yml}
+    ports:
+      - "${COMPOSE_EXPORTER_PORT:-9888}:${COMPOSE_EXPORTER_PORT:-9888}"
+
+  prometheus:
+    image: prom/prometheus:latest
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-lifecycle
+    ports:
+      - "9090:9090"
+    depends_on:
+      exporter:
+        condition: service_started
+    configs:
+      - source: prometheus_config
+        target: /etc/prometheus/prometheus.yml
+    volumes:
+      - ./examples/prometheus/:/etc/prometheus/rules/:ro
+
+  grafana:
+    image: grafana/grafana:latest
+    ports:
+      - "3000:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: "false"
+    configs:
+      - source: grafana_prometheus_datasource
+        target: /etc/grafana/provisioning/datasources/prometheus.yml
+      - source: grafana_dashboards_provider
+        target: /etc/grafana/provisioning/dashboards/dashboards.yml
+    volumes:
+      - ./examples/grafana/:/var/lib/grafana/dashboards/:ro
+    depends_on:
+      prometheus:
+        condition: service_started
+
+configs:
+  feature_config:
+    file: ./${FEATURE_CONFIG_PATH:-examples/prometheus-pkg-exporter.yml}
+  prometheus_config:
+    content: |
+      global:
+        scrape_interval: 15s
+        evaluation_interval: 15s
+
+      rule_files:
+        - /etc/prometheus/rules/*.yml
+
+      scrape_configs:
+        - job_name: ${FEATURE_NAME}_exporter
+          static_configs:
+            - targets:
+                - exporter:${COMPOSE_EXPORTER_PORT:-9888}
+  grafana_prometheus_datasource:
+    content: |
+      apiVersion: 1
+
+      datasources:
+        - name: Prometheus
+          uid: DS_PROMETHEUS
+          type: prometheus
+          access: proxy
+          url: http://prometheus:9090
+          isDefault: true
+          editable: false
+  grafana_dashboards_provider:
+    content: |
+      apiVersion: 1
+
+      providers:
+        - name: ${PROJECT_DESC:-Exporter}
+          orgId: 1
+          folder: Exporters
+          type: file
+          disableDeletion: true
+          editable: false
+          updateIntervalSeconds: 30
+          options:
+            path: /var/lib/grafana/dashboards
