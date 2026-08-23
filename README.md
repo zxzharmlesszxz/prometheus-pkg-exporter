@@ -94,15 +94,23 @@ Framework collection timing is exported as `pkg_exporter_collection_duration_sec
 Example output:
 
 ```code
-apt_packages_installed_count 4
-apt_packages_upgradable_count{category="all"} 3
-apt_packages_upgradable_count{category="security"} 2
-apt_packages_pinned_updates_count{category="all"} 1
-apt_packages_pinned_updates_count{category="security"} 0
-apt_packages_backports_updates_count 1
-apt_packages_broken_count 0
+pkg_packages_installed_count 4
+pkg_packages_upgradable_count{category="all"} 3
+pkg_packages_upgradable_count{category="security"} 2
+pkg_packages_pinned_updates_count{category="all"} 1
+pkg_packages_pinned_updates_count{category="security"} 0
+pkg_packages_backports_updates_count 1
+pkg_packages_broken_count 0
+pkg_status_database_up 1
+pkg_status_database_valid 1
+pkg_status_database_read_errors_total 0
+pkg_status_database_parse_errors_total 0
+pkg_apt_lists_up 1
+pkg_apt_lists_valid 1
+pkg_apt_lists_read_errors_total 0
+pkg_apt_lists_parse_errors_total 0
 pkg_exporter_upgrade_metrics_valid 1
-os_reboot_required 1
+pkg_reboot_required 1
 pkg_exporter_last_collection_success 1
 pkg_exporter_last_collection_timestamp_seconds 1742812800
 pkg_exporter_last_successful_collection_timestamp_seconds 1742812800
@@ -117,6 +125,8 @@ It uses the Grafana v2 dashboard model with `Overview`, `Runtime`, and `Scrape` 
 `Overview` contains package status cards, a per-instance `Package Inventory` table, collapsed historical graphs, apt cache freshness, and package collection internals.
 `Runtime` contains exporter process/runtime panels and framework collection metrics.
 `Scrape` contains Prometheus scrape health panels with synchronized crosshair movement.
+Source error metrics are cumulative counters; use `rate()` or `increase()` when
+graphing or alerting on new failures.
 
 ## Docker Compose
 

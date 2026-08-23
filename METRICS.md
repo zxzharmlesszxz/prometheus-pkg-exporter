@@ -44,7 +44,7 @@
 
 ## Business Metrics
 
-### `os_reboot_required`
+### `pkg_reboot_required`
 
 - Type: gauge
 - Value:
@@ -53,14 +53,14 @@
 - Labels: none
 - Notes: host reboot requirement state
 
-### `apt_packages_installed_count`
+### `pkg_packages_installed_count`
 
 - Type: gauge
 - Value: number of installed packages from dpkg status
 - Labels: none
 - Notes: current package inventory size
 
-### `apt_packages_upgradable_count`
+### `pkg_packages_upgradable_count`
 
 - Type: gauge
 - Value: number of upgradable packages in the selected category
@@ -70,7 +70,7 @@
   - exported categories are `all` and `security`
   - upgrade candidates are selected from local apt metadata using release priorities, so lower-priority backports are not counted as normal upgrades
 
-### `apt_packages_pinned_updates_count`
+### `pkg_packages_pinned_updates_count`
 
 - Type: gauge
 - Value: number of packages with a newer available version that is not selected by apt policy
@@ -79,10 +79,10 @@
 - Notes:
   - exported categories are `all` and `security`
   - this captures updates hidden by lower-priority non-backports archives, apt pinning, or held packages
-  - backports updates are excluded and reported by `apt_packages_backports_updates_count`
+  - backports updates are excluded and reported by `pkg_packages_backports_updates_count`
   - a package can be counted here even when a lower version is available as a normal upgrade candidate
 
-### `apt_packages_backports_updates_count`
+### `pkg_packages_backports_updates_count`
 
 - Type: gauge
 - Value: number of packages with a newer available version in backports archives
@@ -91,7 +91,7 @@
   - this counts backports availability separately from apt policy selection
   - packages already installed from backports are counted when a newer backports version exists
 
-### `apt_packages_broken_count`
+### `pkg_packages_broken_count`
 
 - Type: gauge
 - Value: number of broken packages detected from dpkg status
@@ -106,7 +106,53 @@
   - `0` when apt package index cache is missing and upgrade-related metrics should be treated as unknown
 - Labels: none
 - Notes:
-  - applies to `apt_packages_upgradable_count`, `apt_packages_pinned_updates_count`, and `apt_packages_backports_updates_count`
+  - applies to `pkg_packages_upgradable_count`, `pkg_packages_pinned_updates_count`, and `pkg_packages_backports_updates_count`
+
+## Package Source Health
+
+### `pkg_status_database_up`
+
+- Type: gauge
+- Value: `1` when the dpkg status database was readable during the latest collection; `0` otherwise
+
+### `pkg_status_database_valid`
+
+- Type: gauge
+- Value: `1` when the latest readable dpkg status database contained package records or was empty; `0` when non-empty content could not produce any package records
+
+### `pkg_apt_lists_up`
+
+- Type: gauge
+- Value: `1` when the apt lists source was readable during the latest collection; `0` otherwise
+
+### `pkg_apt_lists_valid`
+
+- Type: gauge
+- Value: `1` when readable apt lists contained package indexes usable for upgrade calculations; `0` otherwise
+
+### `pkg_status_database_read_errors_total`
+
+- Type: counter
+- Value: cumulative dpkg status database read failures
+
+### `pkg_status_database_parse_errors_total`
+
+- Type: counter
+- Value: cumulative dpkg status database parse failures
+
+### `pkg_apt_lists_read_errors_total`
+
+- Type: counter
+- Value: cumulative apt lists directory, metadata, or package-index read failures
+
+### `pkg_apt_lists_parse_errors_total`
+
+- Type: counter
+- Value: cumulative apt package-index parse failures
+
+All `*_errors_total` metrics are cumulative counters. Use `increase()` for
+alert windows and `rate()` for dashboard graphs; a non-zero total does not mean
+that the latest collection failed.
 
 ## Diagnostics Metrics
 

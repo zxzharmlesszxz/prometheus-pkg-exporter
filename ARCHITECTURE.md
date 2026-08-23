@@ -74,24 +74,33 @@ The `/healthz` endpoint remains `200 OK` while the process is alive even if the 
 
 ### Package State Metrics
 
-- `apt_packages_installed_count`
+- `pkg_packages_installed_count`
   Number of installed packages from dpkg status.
-- `apt_packages_upgradable_count{category="all"}`
+- `pkg_packages_upgradable_count{category="all"}`
   Total packages with an upgrade candidate after apt-like release priority selection.
-- `apt_packages_upgradable_count{category="security"}`
+- `pkg_packages_upgradable_count{category="security"}`
   Upgradable packages whose selected candidate is present in a security archive.
-- `apt_packages_pinned_updates_count{category="all"}`
+- `pkg_packages_pinned_updates_count{category="all"}`
   Packages with a newer available version in a non-backports archive that is not selected by apt policy because a higher-priority candidate wins, or because the installed package is held.
-- `apt_packages_pinned_updates_count{category="security"}`
+- `pkg_packages_pinned_updates_count{category="security"}`
   Pinned updates whose newer available version is present in a non-backports security archive.
-- `apt_packages_backports_updates_count`
+- `pkg_packages_backports_updates_count`
   Packages with a newer available version in a backports archive, regardless of whether that version is the selected apt policy candidate.
-- `apt_packages_broken_count`
+- `pkg_packages_broken_count`
   Number of broken packages inferred from dpkg status.
 - `pkg_exporter_upgrade_metrics_valid`
   `1` when local apt package indexes are present; `0` when upgrade-related metrics should be treated as unknown because apt package indexes are missing.
-- `os_reboot_required`
+- `pkg_reboot_required`
   `1` when the reboot-required marker file exists, otherwise `0`.
+
+### Package Source Health
+
+- `pkg_status_database_up` and `pkg_apt_lists_up` describe readability during the latest collection.
+- `pkg_status_database_valid` and `pkg_apt_lists_valid` describe whether the latest source content was usable.
+- `pkg_status_database_read_errors_total`, `pkg_status_database_parse_errors_total`,
+  `pkg_apt_lists_read_errors_total`, and `pkg_apt_lists_parse_errors_total`
+  are cumulative counters. Dashboards and alerts use `rate()` or `increase()`
+  rather than treating their totals as latest-scrape state.
 
 ### Collection Health
 
