@@ -1,0 +1,89 @@
+rule_files:
+  - ../prometheus-pkg-exporter.yml
+
+evaluation_interval: 1m
+
+tests:
+  - name: Package source state alerts use latest-scrape gauges
+    interval: 1m
+    input_series:
+      - series: 'pkg_status_database_up{job="pkg-exporter",instance="unreadable"}'
+        values: '0x20'
+      - series: 'pkg_apt_lists_valid{job="pkg-exporter",instance="invalid"}'
+        values: '0x20'
+    alert_rule_test:
+      - eval_time: 11m
+        alertname: PkgPackageSourceUnreadable
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: pkg-exporter
+              instance: unreadable
+            exp_annotations:
+              summary: Package source is unreadable (unreadable)
+              description: |
+                The exporter cannot read the dpkg status database or apt lists source.
+      - eval_time: 11m
+        alertname: PkgPackageSourceInvalid
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: pkg-exporter
+              instance: invalid
+            exp_annotations:
+              summary: Package source is invalid (invalid)
+              description: |
+                The dpkg status database or apt lists source did not produce valid package data.
+
+  - name: Package source error alerts use counter increases
+    interval: 1m
+    input_series:
+      - series: 'pkg_status_database_read_errors_total{job="pkg-exporter",instance="read-errors"}'
+        values: '0x14 1x16'
+      - series: 'pkg_apt_lists_parse_errors_total{job="pkg-exporter",instance="parse-errors"}'
+        values: '0x14 1x16'
+      - series: 'pkg_status_database_read_errors_total{job="pkg-exporter",instance="old-read-error"}'
+        values: '7x31'
+      - series: 'pkg_apt_lists_parse_errors_total{job="pkg-exporter",instance="old-parse-error"}'
+        values: '9x31'
+    alert_rule_test:
+      - eval_time: 30m
+        alertname: PkgPackageSourceReadErrors
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: pkg-exporter
+              instance: read-errors
+            exp_annotations:
+              summary: Package source read errors detected (read-errors)
+              description: |
+                One or more package source reads failed during the last 30 minutes.
+      - eval_time: 30m
+        alertname: PkgPackageSourceParseErrors
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: pkg-exporter
+              instance: parse-errors
+            exp_annotations:
+              summary: Package source parse errors detected (parse-errors)
+              description: |
+                One or more package sources could not be parsed during the last 30 minutes.
+
+  - name: Package problem alerts match hyphenated job names
+    interval: 1m
+    input_series:
+      - series: 'pkg_reboot_required{job="prometheus-pkg-exporter",instance="reboot"}'
+        values: '1x50000'
+    alert_rule_test:
+      - eval_time: 31d
+        alertname: PkgRebootRequired
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: prometheus-pkg-exporter
+              instance: reboot
+            exp_annotations:
+              summary: Node reboot required after package changes (reboot)
+              description: |
+                The node exposes /run/reboot-required and should be rebooted when operationally safe.

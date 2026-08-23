@@ -1411,7 +1411,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "changes(apt_packages_upgradable_count{category=\"all\", job=~\"$job\"}[24h]) and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~\"$job\"} == 1",
+                        "expr": "changes(pkg_packages_upgradable_count{category=\"all\", job=~\"$job\"}[24h]) and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~\"$job\"} == 1",
                         "legendFormat": "{{instance}} upgradable",
                         "range": true
                       }
@@ -1505,7 +1505,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "changes(apt_packages_pinned_updates_count{category=\"all\", job=~\"$job\"}[24h]) and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~\"$job\"} == 1",
+                        "expr": "changes(pkg_packages_pinned_updates_count{category=\"all\", job=~\"$job\"}[24h]) and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~\"$job\"} == 1",
                         "legendFormat": "{{instance}} pinned",
                         "range": true
                       }
@@ -1599,7 +1599,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "changes(apt_packages_backports_updates_count{job=~\"$job\"}[24h]) and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~\"$job\"} == 1",
+                        "expr": "changes(pkg_packages_backports_updates_count{job=~\"$job\"}[24h]) and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~\"$job\"} == 1",
                         "legendFormat": "{{instance}} backports",
                         "range": true
                       }
@@ -1956,8 +1956,8 @@
         "kind": "Panel",
         "spec": {
           "id": 29,
-          "title": "Package Index Cache Miss Rate",
-          "description": "Package index cache misses per second",
+          "title": "Package Source Error Rate",
+          "description": "New dpkg status and apt lists read/parse errors per second; source totals are cumulative counters",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -1975,8 +1975,8 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "rate(pkg_exporter_package_index_cache_misses_total{job=~\"$job\"}[5m])",
-                        "legendFormat": "{{instance}} misses/s",
+                        "expr": "label_replace(label_replace(rate(pkg_status_database_read_errors_total{job=~\"$job\"}[5m]), \"source\", \"status_database\", \"__name__\", \".*\"), \"error_type\", \"read\", \"__name__\", \".*\") or label_replace(label_replace(rate(pkg_status_database_parse_errors_total{job=~\"$job\"}[5m]), \"source\", \"status_database\", \"__name__\", \".*\"), \"error_type\", \"parse\", \"__name__\", \".*\") or label_replace(label_replace(rate(pkg_apt_lists_read_errors_total{job=~\"$job\"}[5m]), \"source\", \"apt_lists\", \"__name__\", \".*\"), \"error_type\", \"read\", \"__name__\", \".*\") or label_replace(label_replace(rate(pkg_apt_lists_parse_errors_total{job=~\"$job\"}[5m]), \"source\", \"apt_lists\", \"__name__\", \".*\"), \"error_type\", \"parse\", \"__name__\", \".*\")",
+                        "legendFormat": "{{instance}} {{source}} {{error_type}}",
                         "range": true
                       }
                     },
@@ -2581,7 +2581,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum(apt_packages_broken_count{job=~\"$job\"})",
+                        "expr": "sum(pkg_packages_broken_count{job=~\"$job\"})",
                         "instant": true,
                         "legendFormat": "broken_packages",
                         "range": false
@@ -2667,7 +2667,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum(apt_packages_upgradable_count{job=~\"$job\",category=\"security\"} and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~\"$job\"} == 1)",
+                        "expr": "sum(pkg_packages_upgradable_count{job=~\"$job\",category=\"security\"} and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~\"$job\"} == 1)",
                         "instant": true,
                         "legendFormat": "security_updates",
                         "range": false
@@ -2753,7 +2753,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum(os_reboot_required{job=~\"$job\"})",
+                        "expr": "sum(pkg_reboot_required{job=~\"$job\"})",
                         "instant": true,
                         "legendFormat": "reboot_required",
                         "range": false
@@ -2851,7 +2851,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum(apt_packages_upgradable_count{job=~\"$job\"} and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~\"$job\"} == 1) by(category)",
+                        "expr": "sum(pkg_packages_upgradable_count{job=~\"$job\"} and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~\"$job\"} == 1) by(category)",
                         "legendFormat": "{{category}}",
                         "range": true
                       }
@@ -2965,7 +2965,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum(apt_packages_installed_count{job=~\"$job\"})",
+                        "expr": "sum(pkg_packages_installed_count{job=~\"$job\"})",
                         "legendFormat": "installed",
                         "range": true
                       }
@@ -2986,7 +2986,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum(apt_packages_broken_count{job=~\"$job\"})",
+                        "expr": "sum(pkg_packages_broken_count{job=~\"$job\"})",
                         "legendFormat": "broken",
                         "range": true
                       }
@@ -3007,7 +3007,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum(apt_packages_pinned_updates_count{job=~\"$job\"} and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~\"$job\"} == 1) by(category)",
+                        "expr": "sum(pkg_packages_pinned_updates_count{job=~\"$job\"} and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~\"$job\"} == 1) by(category)",
                         "instant": false,
                         "legendFormat": "pinned - {{category}}",
                         "range": true
@@ -3029,7 +3029,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum(apt_packages_backports_updates_count{job=~\"$job\"} and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~\"$job\"} == 1)",
+                        "expr": "sum(pkg_packages_backports_updates_count{job=~\"$job\"} and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~\"$job\"} == 1)",
                         "instant": false,
                         "legendFormat": "backports_updates",
                         "range": true
@@ -3144,7 +3144,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "apt_packages_installed_count{job=~\"$job\"}",
+                        "expr": "pkg_packages_installed_count{job=~\"$job\"}",
                         "instant": true,
                         "legendFormat": "__auto",
                         "range": false,
@@ -3190,7 +3190,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "apt_packages_broken_count{job=~\"$job\"}",
+                        "expr": "pkg_packages_broken_count{job=~\"$job\"}",
                         "instant": true,
                         "legendFormat": "__auto",
                         "range": false,
@@ -3213,7 +3213,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "apt_packages_upgradable_count{job=~\"$job\",category=\"all\"}",
+                        "expr": "pkg_packages_upgradable_count{job=~\"$job\",category=\"all\"}",
                         "instant": true,
                         "legendFormat": "__auto",
                         "range": false,
@@ -3236,7 +3236,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "apt_packages_upgradable_count{job=~\"$job\",category=\"security\"}",
+                        "expr": "pkg_packages_upgradable_count{job=~\"$job\",category=\"security\"}",
                         "instant": true,
                         "legendFormat": "__auto",
                         "range": false,
@@ -3259,7 +3259,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "apt_packages_pinned_updates_count{job=~\"$job\",category=\"all\"}",
+                        "expr": "pkg_packages_pinned_updates_count{job=~\"$job\",category=\"all\"}",
                         "instant": true,
                         "legendFormat": "__auto",
                         "range": false,
@@ -3282,7 +3282,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "apt_packages_backports_updates_count{job=~\"$job\"}",
+                        "expr": "pkg_packages_backports_updates_count{job=~\"$job\"}",
                         "instant": true,
                         "legendFormat": "__auto",
                         "range": false,
@@ -3305,7 +3305,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "os_reboot_required{job=~\"$job\"}",
+                        "expr": "pkg_reboot_required{job=~\"$job\"}",
                         "instant": true,
                         "legendFormat": "__auto",
                         "range": false,
@@ -3328,7 +3328,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "pkg_exporter_upgrade_metrics_valid{job=~\"$job\"}",
+                        "expr": "pkg_status_database_up{job=~\"$job\"} * on(instance, job) pkg_status_database_valid{job=~\"$job\"} * on(instance, job) pkg_apt_lists_up{job=~\"$job\"} * on(instance, job) pkg_apt_lists_valid{job=~\"$job\"}",
                         "instant": true,
                         "legendFormat": "__auto",
                         "range": false,
@@ -3520,7 +3520,7 @@
                         "broken": 8,
                         "backports": 9,
                         "last_success_age": 10,
-                        "APT Cache": 11,
+                        "Sources": 11,
                         "APT lists age": 12,
                         "DPKG age": 13
                       },
@@ -3534,7 +3534,7 @@
                         "Value #F": "pinned",
                         "Value #G": "backports",
                         "Value #H": "reboot",
-                        "Value #I": "APT Cache",
+                        "Value #I": "Sources",
                         "Value #J": "APT lists age",
                         "Value #K": "DPKG age",
                         "Value #L": "collection_success",
@@ -3788,7 +3788,7 @@
                   {
                     "matcher": {
                       "id": "byName",
-                      "options": "APT Cache"
+                      "options": "Sources"
                     },
                     "properties": [
                       {
@@ -3820,7 +3820,7 @@
                             "type": "value",
                             "options": {
                               "0": {
-                                "text": "Missing",
+                            "text": "Problem",
                                 "color": "red",
                                 "index": 0
                               },
@@ -4026,7 +4026,7 @@
                   {
                     "matcher": {
                       "id": "byName",
-                      "options": "APT Cache"
+                      "options": "Sources"
                     },
                     "properties": [
                       {
@@ -4088,7 +4088,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum(apt_packages_upgradable_count{job=~\"$job\",category=\"all\"} and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~\"$job\"} == 1)",
+                        "expr": "sum(pkg_packages_upgradable_count{job=~\"$job\",category=\"all\"} and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~\"$job\"} == 1)",
                         "instant": true,
                         "legendFormat": "available_updates",
                         "range": false
@@ -4182,7 +4182,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum(apt_packages_installed_count{job=~\"$job\"})",
+                        "expr": "sum(pkg_packages_installed_count{job=~\"$job\"})",
                         "instant": true,
                         "legendFormat": "installed_packages",
                         "range": false
@@ -4853,7 +4853,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum(apt_packages_pinned_updates_count{job=~\"$job\",category=\"all\"} and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~\"$job\"} == 1)",
+                        "expr": "sum(pkg_packages_pinned_updates_count{job=~\"$job\",category=\"all\"} and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~\"$job\"} == 1)",
                         "instant": true,
                         "legendFormat": "value",
                         "range": false
@@ -4947,7 +4947,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum(apt_packages_backports_updates_count{job=~\"$job\"} and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~\"$job\"} == 1)",
+                        "expr": "sum(pkg_packages_backports_updates_count{job=~\"$job\"} and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~\"$job\"} == 1)",
                         "instant": true,
                         "legendFormat": "value",
                         "range": false
@@ -5818,7 +5818,7 @@
           "hide": "dontHide",
           "skipUrlSync": false,
           "allowCustomValue": true,
-          "allValue": ".*pkg.*exporter.*"
+          "allValue": "^(prometheus[_-])?pkg[_-]exporter$"
         }
       },
       {

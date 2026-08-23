@@ -3,7 +3,7 @@ groups:
     rules:
       - alert: PkgExporterDown
         expr: up{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 0
-        for: 5m
+        for: '5m'
         labels:
           severity: critical
         annotations:
@@ -13,7 +13,7 @@ groups:
 
       - alert: PkgExporterCollectionFailed
         expr: pkg_exporter_last_collection_success{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 0
-        for: 10m
+        for: '10m'
         labels:
           severity: warning
         annotations:
@@ -23,7 +23,7 @@ groups:
 
       - alert: PkgExporterCollectionStale
         expr: time() - (pkg_exporter_last_successful_collection_timestamp_seconds{job=~"^(prometheus[_-])?pkg[_-]exporter$"} > 0) > 300
-        for: 10m
+        for: '10m'
         labels:
           severity: warning
         annotations:
@@ -31,9 +31,47 @@ groups:
           description: |
             prometheus-pkg-exporter has not refreshed package data successfully for more than 5 minutes.
 
+      - alert: PkgPackageSourceUnreadable
+        expr: pkg_status_database_up{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 0 or pkg_apt_lists_up{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 0
+        for: '10m'
+        labels:
+          severity: warning
+        annotations:
+          summary: Package source is unreadable ({{ $labels.instance }})
+          description: |
+            The exporter cannot read the dpkg status database or apt lists source.
+
+      - alert: PkgPackageSourceInvalid
+        expr: pkg_status_database_valid{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 0 or pkg_apt_lists_valid{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 0
+        for: '10m'
+        labels:
+          severity: warning
+        annotations:
+          summary: Package source is invalid ({{ $labels.instance }})
+          description: |
+            The dpkg status database or apt lists source did not produce valid package data.
+
+      - alert: PkgPackageSourceReadErrors
+        expr: increase(pkg_status_database_read_errors_total{job=~"^(prometheus[_-])?pkg[_-]exporter$"}[30m]) > 0 or increase(pkg_apt_lists_read_errors_total{job=~"^(prometheus[_-])?pkg[_-]exporter$"}[30m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: Package source read errors detected ({{ $labels.instance }})
+          description: |
+            One or more package source reads failed during the last 30 minutes.
+
+      - alert: PkgPackageSourceParseErrors
+        expr: increase(pkg_status_database_parse_errors_total{job=~"^(prometheus[_-])?pkg[_-]exporter$"}[30m]) > 0 or increase(pkg_apt_lists_parse_errors_total{job=~"^(prometheus[_-])?pkg[_-]exporter$"}[30m]) > 0
+        labels:
+          severity: warning
+        annotations:
+          summary: Package source parse errors detected ({{ $labels.instance }})
+          description: |
+            One or more package sources could not be parsed during the last 30 minutes.
+
       - alert: PkgExporterCollectionSlow
         expr: histogram_quantile(0.95, sum by (instance, le) (rate(pkg_exporter_package_collection_duration_seconds_bucket{job=~"^(prometheus[_-])?pkg[_-]exporter$"}[15m]))) > 10
-        for: 15m
+        for: '15m'
         labels:
           severity: warning
         annotations:
@@ -43,7 +81,7 @@ groups:
 
       - alert: PkgExporterPackageIndexCacheMissRateHigh
         expr: rate(pkg_exporter_package_index_cache_misses_total{job=~"^(prometheus[_-])?pkg[_-]exporter$"}[15m]) > 0.02
-        for: 15m
+        for: '15m'
         labels:
           severity: warning
         annotations:
@@ -51,9 +89,9 @@ groups:
           description: |
             prometheus-pkg-exporter is reparsing apt package indexes more often than expected.
 
-      - alert: AptPackageIndexCacheMissing
+      - alert: PkgPackageIndexCacheMissing
         expr: pkg_exporter_upgrade_metrics_valid{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 0
-        for: 30m
+        for: '30m'
         labels:
           severity: warning
         annotations:
@@ -61,9 +99,9 @@ groups:
           description: |
             prometheus-pkg-exporter sees no apt package index files in /var/lib/apt/lists. Upgrade-related metrics are unknown until apt cache is populated.
 
-      - alert: AptPackageIndexCacheStale
+      - alert: PkgPackageIndexCacheStale
         expr: time() - (pkg_exporter_apt_lists_last_modified_timestamp_seconds{job=~"^(prometheus[_-])?pkg[_-]exporter$"} > 0) > 172800 and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 1
-        for: 6h
+        for: '6h'
         labels:
           severity: warning
         annotations:
@@ -71,9 +109,9 @@ groups:
           description: |
             The newest apt package index or release metadata file is older than 48 hours. Upgrade-related metrics may be based on stale apt metadata.
 
-      - alert: AptBrokenPackagesPresent
-        expr: apt_packages_broken_count{job=~"^(prometheus[_-])?pkg[_-]exporter$"} > 0
-        for: 15m
+      - alert: PkgBrokenPackagesPresent
+        expr: pkg_packages_broken_count{job=~"^(prometheus[_-])?pkg[_-]exporter$"} > 0
+        for: '15m'
         labels:
           severity: warning
         annotations:
@@ -81,9 +119,9 @@ groups:
           description: |
             The exporter reports one or more broken packages from apt diagnostics.
 
-      - alert: AptSecurityUpdatesAvailable
-        expr: apt_packages_upgradable_count{category="security", job=~"^(prometheus[_-])?pkg[_-]exporter$"} > 0 and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 1
-        for: 90d
+      - alert: PkgSecurityUpdatesAvailable
+        expr: pkg_packages_upgradable_count{category="security", job=~"^(prometheus[_-])?pkg[_-]exporter$"} > 0 and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 1
+        for: '90d'
         labels:
           severity: warning
         annotations:
@@ -91,9 +129,9 @@ groups:
           description: |
             The node has one or more pending security-related package upgrades.
 
-      - alert: AptUpdatesAvailable
-        expr: apt_packages_upgradable_count{category="all", job=~"^(prometheus[_-])?pkg[_-]exporter$"} > 0 and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 1
-        for: 180d
+      - alert: PkgUpdatesAvailable
+        expr: pkg_packages_upgradable_count{category="all", job=~"^(prometheus[_-])?pkg[_-]exporter$"} > 0 and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 1
+        for: '180d'
         labels:
           severity: info
         annotations:
@@ -101,9 +139,9 @@ groups:
           description: |
             The exporter reports pending package upgrades on the node.
 
-      - alert: RebootRequired
-        expr: os_reboot_required{job=~"^(prometheus[_-])?pkg[_-]exporter$"} > 0
-        for: 30d
+      - alert: PkgRebootRequired
+        expr: pkg_reboot_required{job=~"^(prometheus[_-])?pkg[_-]exporter$"} > 0
+        for: '30d'
         labels:
           severity: warning
         annotations:
