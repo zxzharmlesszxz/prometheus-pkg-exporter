@@ -1,6 +1,6 @@
 ARG PROJECT_NAME=exporter
 
-FROM golang:1.26 AS build
+FROM golang:1.27.0 AS build
 
 WORKDIR /src
 
@@ -22,7 +22,11 @@ FROM debian:bookworm-slim
 
 ARG PROJECT_NAME
 
+RUN apt-get update && apt-get install -y --no-install-recommends ca-certificates && rm -rf /var/lib/apt/lists/*
+
 COPY --from=build /src/dist/${PROJECT_NAME} /usr/local/bin/exporter
+
+EXPOSE 9888
 
 USER nobody
 

@@ -19,11 +19,7 @@ func NewDefaultSnapshotEngine() featurekit.SnapshotEngine[Snapshot] {
 }
 
 func NewSnapshotEngine(ctx featurekit.CollectorContext[Config]) (featurekit.SnapshotEngine[Snapshot], error) {
-	config, _, _, err := ResolveFeatureConfig(ctx.FeatureName, ctx.Config)
-	if err != nil {
-		return nil, err
-	}
-	return newSnapshotEngine(config)
+	return newSnapshotEngine(ctx.Config)
 }
 
 func FeatureSnapshotStatus(snapshot Snapshot) framework.SnapshotStatus {

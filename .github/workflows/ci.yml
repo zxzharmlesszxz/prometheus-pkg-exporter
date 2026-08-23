@@ -15,7 +15,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  RELEASE_PLATFORMS: "linux/amd64 linux/arm64"
   DOCKER_PLATFORMS: "linux/amd64,linux/arm64"
 
 permissions:
@@ -26,10 +25,11 @@ jobs:
     name: Go Check
     runs-on: ubuntu-24.04
     container:
-      image: golang:1.26.3-alpine
+      image: golang:1.27.0-alpine
 
     steps:
       - name: Prepare Alpine
+        shell: sh
         run: apk add --no-cache bash build-base ca-certificates git make
 
       - name: Checkout
@@ -45,12 +45,13 @@ jobs:
     name: Build Binary
     runs-on: ubuntu-24.04
     container:
-      image: golang:1.26.3-alpine
+      image: golang:1.27.0-alpine
     needs:
       - go-check
 
     steps:
       - name: Prepare Alpine
+        shell: sh
         run: apk add --no-cache bash ca-certificates git make
 
       - name: Checkout
@@ -90,6 +91,7 @@ jobs:
     if: github.ref_type == 'tag'
     needs:
       - go-check
+      - build
       - docker-check
     permissions:
       contents: write
@@ -102,9 +104,9 @@ jobs:
           fetch-tags: true
 
       - name: Set up Go
-        uses: actions/setup-go@v6
+        uses: actions/setup-go@v7
         with:
-          go-version: '1.26.3'
+          go-version: '1.27.0'
 
       - name: Build Release Archives
         run: make release-smoke
@@ -125,6 +127,7 @@ jobs:
     if: github.ref_type == 'tag'
     needs:
       - go-check
+      - build
       - docker-check
     permissions:
       contents: read
@@ -150,6 +153,25 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
+      - name: Prepare Docker Build Metadata
+        id: docker-meta
+        shell: bash
+        run: |
+          revision="${GITHUB_SHA::7}"
+          build_date="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+          ldflags="$(make print-ldflags \
+            VERSION="${GITHUB_REF_NAME}" \
+            BRANCH="${GITHUB_REF_NAME}" \
+            REVISION="${revision}" \
+            BUILD_USER=github-actions \
+            BUILD_DATE="${build_date}")"
+
+          {
+            echo "revision=${revision}"
+            echo "build_date=${build_date}"
+            echo "ldflags=${ldflags}"
+          } >> "$GITHUB_OUTPUT"
+
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v7
         with:
@@ -160,3 +182,6 @@ jobs:
           tags: |
             ghcr.io/${{ github.repository }}:latest
             ghcr.io/${{ github.repository }}:${{ github.ref_name }}
+          build-args: |
+            PROJECT_NAME=prometheus-pkg-exporter
+            LDFLAGS=${{ steps.docker-meta.outputs.ldflags }}

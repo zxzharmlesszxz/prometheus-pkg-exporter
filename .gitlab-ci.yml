@@ -1,14 +1,20 @@
 ---
 
-image: golang:1.26.3-alpine
+image: golang:1.27.0-alpine
 
 before_script:
   - apk add --no-cache bash build-base ca-certificates git make
 
 variables:
   PROJECT_NAME: "${CI_PROJECT_NAME}"
-  RELEASE_PLATFORMS: "linux/amd64 linux/arm64"
   DOCKER_PLATFORMS: "linux/amd64,linux/arm64"
+
+.build-metadata: &build-metadata |
+  export VERSION="${CI_COMMIT_TAG:-${CI_COMMIT_REF_NAME:-dev}}"
+  export BRANCH="${CI_COMMIT_BRANCH:-${CI_COMMIT_REF_NAME:-detached}}"
+  export REVISION="${CI_COMMIT_SHORT_SHA:-${CI_COMMIT_SHA:-dev}}"
+  export BUILD_USER="${GITLAB_USER_LOGIN:-gitlab-ci}"
+  export BUILD_DATE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 stages:
   - test
@@ -20,22 +26,14 @@ stages:
 test:
   stage: test
   script:
-    - VERSION_VALUE="${CI_COMMIT_TAG:-${CI_COMMIT_REF_NAME:-dev}}"
-    - BRANCH_VALUE="${CI_COMMIT_BRANCH:-${CI_COMMIT_REF_NAME:-detached}}"
-    - REVISION_VALUE="${CI_COMMIT_SHORT_SHA:-${CI_COMMIT_SHA:-dev}}"
-    - BUILD_USER_VALUE="${GITLAB_USER_LOGIN:-gitlab-ci}"
-    - BUILD_DATE_VALUE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    - make go-check VERSION="${VERSION_VALUE}" BRANCH="${BRANCH_VALUE}" REVISION="${REVISION_VALUE}" BUILD_USER="${BUILD_USER_VALUE}" BUILD_DATE="${BUILD_DATE_VALUE}"
+    - *build-metadata
+    - make go-check
 
 compile:
   stage: build
   script:
-    - VERSION_VALUE="${CI_COMMIT_TAG:-${CI_COMMIT_REF_NAME:-dev}}"
-    - BRANCH_VALUE="${CI_COMMIT_BRANCH:-${CI_COMMIT_REF_NAME:-detached}}"
-    - REVISION_VALUE="${CI_COMMIT_SHORT_SHA:-${CI_COMMIT_SHA:-dev}}"
-    - BUILD_USER_VALUE="${GITLAB_USER_LOGIN:-gitlab-ci}"
-    - BUILD_DATE_VALUE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    - make build VERSION="${VERSION_VALUE}" BRANCH="${BRANCH_VALUE}" REVISION="${REVISION_VALUE}" BUILD_USER="${BUILD_USER_VALUE}" BUILD_DATE="${BUILD_DATE_VALUE}"
+    - *build-metadata
+    - make build
   artifacts:
     name: "$PROJECT_NAME-$CI_COMMIT_REF_SLUG-$CI_COMMIT_SHORT_SHA"
     paths:
@@ -54,11 +52,6 @@ docker-check:
   before_script:
     - apk add --no-cache make
   script:
-    - VERSION_VALUE="${CI_COMMIT_TAG:-${CI_COMMIT_REF_NAME:-dev}}"
-    - BRANCH_VALUE="${CI_COMMIT_BRANCH:-${CI_COMMIT_REF_NAME:-detached}}"
-    - REVISION_VALUE="${CI_COMMIT_SHORT_SHA:-${CI_COMMIT_SHA:-dev}}"
-    - BUILD_USER_VALUE="${GITLAB_USER_LOGIN:-gitlab-ci}"
-    - BUILD_DATE_VALUE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
     - make examples-check
     - make docker-smoke SMOKE_DOCKER_IMAGE="$PROJECT_NAME:make-smoke"
 
@@ -67,12 +60,8 @@ release:
   rules:
     - if: $CI_COMMIT_TAG
   script:
-    - VERSION_VALUE="${CI_COMMIT_TAG:-${CI_COMMIT_REF_NAME:-dev}}"
-    - BRANCH_VALUE="${CI_COMMIT_BRANCH:-${CI_COMMIT_REF_NAME:-detached}}"
-    - REVISION_VALUE="${CI_COMMIT_SHORT_SHA:-${CI_COMMIT_SHA:-dev}}"
-    - BUILD_USER_VALUE="${GITLAB_USER_LOGIN:-gitlab-ci}"
-    - BUILD_DATE_VALUE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    - make release-smoke VERSION="${VERSION_VALUE}" BRANCH="${BRANCH_VALUE}" REVISION="${REVISION_VALUE}" BUILD_USER="${BUILD_USER_VALUE}" BUILD_DATE="${BUILD_DATE_VALUE}" PLATFORMS="$RELEASE_PLATFORMS"
+    - *build-metadata
+    - make release-smoke
   artifacts:
     name: "$PROJECT_NAME-$CI_COMMIT_TAG"
     paths:
@@ -95,9 +84,5 @@ docker-publish:
     - echo "$CI_REGISTRY_PASSWORD" | docker login -u "$CI_REGISTRY_USER" --password-stdin "$CI_REGISTRY"
     - docker buildx create --use --name ci-builder || docker buildx use ci-builder
   script:
-    - VERSION_VALUE="${CI_COMMIT_TAG:-${CI_COMMIT_REF_NAME:-dev}}"
-    - BRANCH_VALUE="${CI_COMMIT_BRANCH:-${CI_COMMIT_REF_NAME:-detached}}"
-    - REVISION_VALUE="${CI_COMMIT_SHORT_SHA:-${CI_COMMIT_SHA:-dev}}"
-    - BUILD_USER_VALUE="${GITLAB_USER_LOGIN:-gitlab-ci}"
-    - BUILD_DATE_VALUE="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-    - make docker-buildx-push VERSION="${VERSION_VALUE}" BRANCH="${BRANCH_VALUE}" REVISION="${REVISION_VALUE}" BUILD_USER="${BUILD_USER_VALUE}" BUILD_DATE="${BUILD_DATE_VALUE}" DOCKER_IMAGE="$CI_REGISTRY_IMAGE:$CI_COMMIT_TAG" DOCKER_PLATFORMS="$DOCKER_PLATFORMS"
+    - *build-metadata
+    - make docker-buildx-push DOCKER_IMAGE="$CI_REGISTRY_IMAGE:$CI_COMMIT_TAG" DOCKER_PLATFORMS="$DOCKER_PLATFORMS"

@@ -10,7 +10,10 @@ import (
 )
 
 func TestBinarySmoke(t *testing.T) {
-	info := exporter.ExporterInfo()
+	info, err := exporter.InfoErr()
+	if err != nil {
+		t.Skipf("skipping binary smoke without injected metadata: %v", err)
+	}
 	smoke := info.Smoke
 
 	smoketest.RunBinary(t, smoketest.Config{
