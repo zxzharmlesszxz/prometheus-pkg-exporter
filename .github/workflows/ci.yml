@@ -172,6 +172,27 @@ jobs:
             echo "ldflags=${ldflags}"
           } >> "$GITHUB_OUTPUT"
 
+      - name: Build Docker Image For Version Check
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          load: true
+          platforms: linux/amd64
+          tags: prometheus-pkg-exporter:release-check
+          build-args: |
+            PROJECT_NAME=prometheus-pkg-exporter
+            LDFLAGS=${{ steps.docker-meta.outputs.ldflags }}
+
+      - name: Verify Docker Image Version
+        shell: bash
+        run: |
+          output="$(docker run --rm prometheus-pkg-exporter:release-check --version 2>&1)"
+          echo "${output}"
+          echo "${output}" | grep -E "version[ =:]+${GITHUB_REF_NAME}(,| |$)" >/dev/null
+          echo "${output}" | grep -E "branch[ =:]+${GITHUB_REF_NAME}(,| |$)" >/dev/null
+          echo "${output}" | grep -E "revision[ =:]+${{ steps.docker-meta.outputs.revision }}(,| |$)" >/dev/null
+
       - name: Build and Push Docker Image
         uses: docker/build-push-action@v7
         with:
