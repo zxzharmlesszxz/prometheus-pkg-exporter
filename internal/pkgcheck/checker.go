@@ -100,5 +100,7 @@ func (s *ObservedSnapshotter) Snapshot(ctx context.Context, attemptTime time.Tim
 	cached.Success = false
 	cached.Err = err
 	cached.CollectionDurationSeconds = snapshot.CollectionDurationSeconds
+	cached.Stats.StatusDatabaseSource = snapshot.Stats.StatusDatabaseSource
+	cached.Stats.APTListsSource = snapshot.Stats.APTListsSource
 	return cached
 }

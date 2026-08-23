@@ -3,12 +3,15 @@ package apt
 import (
 	"bufio"
 	"bytes"
+	"errors"
 	"fmt"
 	"io"
 	"strconv"
 	"strings"
 	"unicode"
 )
+
+var errPackageIndexRead = errors.New("package index read error")
 
 const (
 	defaultPackagePriority                   = 500
@@ -110,6 +113,14 @@ func ParseInstalledPackages(statusDatabase string) []InstalledPackage {
 	return result
 }
 
+func ParseInstalledPackagesStrict(statusDatabase string) ([]InstalledPackage, error) {
+	installed := ParseInstalledPackages(statusDatabase)
+	if strings.TrimSpace(statusDatabase) != "" && len(installed) == 0 {
+		return nil, fmt.Errorf("parse dpkg status: no package records")
+	}
+	return installed, nil
+}
+
 func ParseAvailablePackages(packageIndexes []PackageIndex) []AvailablePackage {
 	return parseAvailablePackages(packageIndexes, nil)
 }
@@ -149,7 +160,7 @@ func parseAvailablePackagesFromStreams(packageIndexes []PackageIndexStream, filt
 	for _, index := range packageIndexes {
 		reader, err := index.Open()
 		if err != nil {
-			return nil, err
+			return nil, fmt.Errorf("%w: %v", errPackageIndexRead, err)
 		}
 		parseErr := parseAvailablePackageReader(reader, index.Name, index.Priority, index.Backports, filter, &result)
 		closeErr := reader.Close()
@@ -161,6 +172,10 @@ func parseAvailablePackagesFromStreams(packageIndexes []PackageIndexStream, filt
 		}
 	}
 	return result, nil
+}
+
+func isPackageIndexReadError(err error) bool {
+	return errors.Is(err, errPackageIndexRead)
 }
 
 func parseAvailablePackageReader(
@@ -548,7 +563,7 @@ func packageFilterAllowsArch(filter map[string]map[string]struct{}, name string,
 func parseDeb822Fields(entry string) map[string]string {
 	fields := make(map[string]string)
 	var current string
-	for _, line := range strings.Split(entry, "\n") {
+	for line := range strings.SplitSeq(entry, "\n") {
 		if line == "" {
 			continue
 		}

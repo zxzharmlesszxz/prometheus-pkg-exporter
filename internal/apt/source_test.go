@@ -375,63 +375,42 @@ func writeTestFile(t *testing.T, dir string, name string, content string) {
 }
 
 func writeTestGzipFile(t *testing.T, dir string, name string, content string) {
-	t.Helper()
-
-	var buf bytes.Buffer
-	writer := gzip.NewWriter(&buf)
-	if _, err := writer.Write([]byte(content)); err != nil {
-		t.Fatalf("compress test file %s: %v", name, err)
-	}
-	if err := writer.Close(); err != nil {
-		t.Fatalf("close compressed test file %s: %v", name, err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, name), buf.Bytes(), 0o644); err != nil {
-		t.Fatalf("write test file %s: %v", name, err)
-	}
+	writeTestCompressedFile(t, dir, name, content, func(output io.Writer) (io.WriteCloser, error) {
+		return gzip.NewWriter(output), nil
+	})
 }
 
 func writeTestBzip2File(t *testing.T, dir string, name string, content string) {
-	t.Helper()
-
-	var buf bytes.Buffer
-	writer, err := bzip2.NewWriter(&buf, nil)
-	if err != nil {
-		t.Fatalf("create bzip2 writer for test file %s: %v", name, err)
-	}
-	if _, err := writer.Write([]byte(content)); err != nil {
-		t.Fatalf("compress test file %s: %v", name, err)
-	}
-	if err := writer.Close(); err != nil {
-		t.Fatalf("close compressed test file %s: %v", name, err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, name), buf.Bytes(), 0o644); err != nil {
-		t.Fatalf("write test file %s: %v", name, err)
-	}
+	writeTestCompressedFile(t, dir, name, content, func(output io.Writer) (io.WriteCloser, error) {
+		return bzip2.NewWriter(output, nil)
+	})
 }
 
 func writeTestLZ4File(t *testing.T, dir string, name string, content string) {
-	t.Helper()
-
-	var buf bytes.Buffer
-	writer := lz4.NewWriter(&buf)
-	if _, err := writer.Write([]byte(content)); err != nil {
-		t.Fatalf("compress test file %s: %v", name, err)
-	}
-	if err := writer.Close(); err != nil {
-		t.Fatalf("close compressed test file %s: %v", name, err)
-	}
-	if err := os.WriteFile(filepath.Join(dir, name), buf.Bytes(), 0o644); err != nil {
-		t.Fatalf("write test file %s: %v", name, err)
-	}
+	writeTestCompressedFile(t, dir, name, content, func(output io.Writer) (io.WriteCloser, error) {
+		return lz4.NewWriter(output), nil
+	})
 }
 
 func writeTestXZFile(t *testing.T, dir string, name string, content string) {
+	writeTestCompressedFile(t, dir, name, content, func(output io.Writer) (io.WriteCloser, error) {
+		return xz.NewWriter(output)
+	})
+}
+
+func writeTestCompressedFile(
+	t *testing.T,
+	dir string,
+	name string,
+	content string,
+	newWriter func(io.Writer) (io.WriteCloser, error),
+) {
 	t.Helper()
 
 	var buf bytes.Buffer
-	writer, err := xz.NewWriter(&buf)
+	writer, err := newWriter(&buf)
 	if err != nil {
-		t.Fatalf("create xz writer for test file %s: %v", name, err)
+		t.Fatalf("create compressor for test file %s: %v", name, err)
 	}
 	if _, err := writer.Write([]byte(content)); err != nil {
 		t.Fatalf("compress test file %s: %v", name, err)

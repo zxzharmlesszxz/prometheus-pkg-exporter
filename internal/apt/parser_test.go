@@ -7,6 +7,13 @@ import (
 	"testing"
 )
 
+func TestParseInstalledPackagesStrictRejectsNonEmptyInvalidStatus(t *testing.T) {
+	_, err := ParseInstalledPackagesStrict("Status: install ok installed\n")
+	if err == nil {
+		t.Fatal("ParseInstalledPackagesStrict() error = nil, want parse error")
+	}
+}
+
 func TestCountInstalledPackages(t *testing.T) {
 	t.Parallel()
 
@@ -399,7 +406,6 @@ func TestCompareVersions(t *testing.T) {
 	}
 
 	for _, tc := range tests {
-		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 

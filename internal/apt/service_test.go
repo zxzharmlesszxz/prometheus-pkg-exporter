@@ -91,6 +91,12 @@ Architecture: amd64
 	if !stats.UpgradeMetricsValid {
 		t.Fatal("Collect() UpgradeMetricsValid = false, want true")
 	}
+	if !stats.StatusDatabaseSource.Up || !stats.StatusDatabaseSource.Valid {
+		t.Fatalf("Collect() StatusDatabaseSource = %+v, want readable and valid", stats.StatusDatabaseSource)
+	}
+	if !stats.APTListsSource.Up || !stats.APTListsSource.Valid {
+		t.Fatalf("Collect() APTListsSource = %+v, want readable and valid", stats.APTListsSource)
+	}
 }
 
 func TestCollectMarksUpgradeMetricsInvalidWithoutPackageIndexes(t *testing.T) {
@@ -170,9 +176,30 @@ func TestCollectReturnsJoinedErrors(t *testing.T) {
 		statusErr: errors.New("status unavailable"),
 	}
 
-	_, err := Collect(context.Background(), source, time.Second)
+	stats, err := Collect(context.Background(), source, time.Second)
 	if err == nil {
 		t.Fatal("Collect() error = nil, want non-nil")
+	}
+	if stats.StatusDatabaseSource.ReadErrorsTotal != 1 {
+		t.Fatalf("Collect() status read errors = %d, want 1", stats.StatusDatabaseSource.ReadErrorsTotal)
+	}
+}
+
+func TestCollectCountsInvalidStatusAsParseError(t *testing.T) {
+	t.Parallel()
+
+	stats, err := Collect(context.Background(), fakeSource{
+		status:  []byte("Status: install ok installed\n"),
+		indexes: []PackageIndex{{Name: "debian_main_Packages"}},
+	}, time.Second)
+	if err == nil {
+		t.Fatal("Collect() error = nil, want parse error")
+	}
+	if !stats.StatusDatabaseSource.Up || stats.StatusDatabaseSource.Valid {
+		t.Fatalf("Collect() StatusDatabaseSource = %+v, want up and invalid", stats.StatusDatabaseSource)
+	}
+	if stats.StatusDatabaseSource.ParseErrorsTotal != 1 {
+		t.Fatalf("Collect() status parse errors = %d, want 1", stats.StatusDatabaseSource.ParseErrorsTotal)
 	}
 }
 

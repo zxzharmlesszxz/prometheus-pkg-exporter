@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strings"
 	"time"
@@ -214,11 +215,11 @@ func (s CommandSource) PackageIndexRevision(context.Context) (string, error) {
 	sort.Slice(revisions, func(i, j int) bool {
 		return revisions[i].name < revisions[j].name
 	})
-	var b strings.Builder
+	formatted := make([]string, 0, len(revisions))
 	for _, revision := range revisions {
-		fmt.Fprintf(&b, "%s:%d:%d\n", revision.name, revision.size, revision.modTime)
+		formatted = append(formatted, fmt.Sprintf("%s:%d:%d\n", revision.name, revision.size, revision.modTime))
 	}
-	return b.String(), nil
+	return strings.Join(formatted, ""), nil
 }
 
 func (s CommandSource) SourceMetadata(context.Context) (SourceMetadata, error) {
@@ -337,8 +338,8 @@ func readReleaseMetadata(entries []os.DirEntry, dir string) (map[string]releaseM
 
 func releasePrefix(name string) (string, bool) {
 	for _, suffix := range []string{"_InRelease", "_Release"} {
-		if strings.HasSuffix(name, suffix) {
-			return strings.TrimSuffix(name, suffix), true
+		if before, ok := strings.CutSuffix(name, suffix); ok {
+			return before, true
 		}
 	}
 	return "", false
@@ -378,18 +379,13 @@ func isDeb822Yes(value string) bool {
 }
 
 func releaseIsBackports(prefix string, fields map[string]string) bool {
-	for _, value := range []string{
+	return slices.ContainsFunc([]string{
 		prefix,
 		fields["Archive"],
 		fields["Suite"],
 		fields["Codename"],
 		fields["Label"],
-	} {
-		if isBackportsValue(value) {
-			return true
-		}
-	}
-	return false
+	}, isBackportsValue)
 }
 
 func isBackportsIndex(name string) bool {

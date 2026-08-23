@@ -2,6 +2,7 @@ package pkg
 
 import (
 	"log/slog"
+	"maps"
 	"sort"
 	"sync"
 	"time"
@@ -9,6 +10,7 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 	framework "github.com/zxzharmlesszxz/prometheus-exporter-framework/exporter"
 	"github.com/zxzharmlesszxz/prometheus-exporter-framework/exporter/featurekit"
+	"github.com/zxzharmlesszxz/prometheus-pkg-exporter/internal/apt"
 )
 
 type featureMetricState struct {
@@ -92,6 +94,7 @@ func (state *featureMetricState) CollectFeatureMetrics(ctx featurekit.FeatureMet
 		prometheus.GaugeValue,
 		framework.BoolFloat(stats.UpgradeMetricsValid),
 	)
+	emitSourceHealthMetrics(ctx, ch, stats)
 	if !stats.DPKGStatusLastModified.IsZero() {
 		ch <- prometheus.MustNewConstMetric(
 			ctx.Descriptors.Get(metricDPKGStatusLastModifiedTimestamp),
@@ -132,6 +135,26 @@ func (state *featureMetricState) CollectFeatureMetrics(ctx featurekit.FeatureMet
 	}
 }
 
+func emitSourceHealthMetrics(ctx featurekit.FeatureMetricsContext[Snapshot], ch chan<- prometheus.Metric, stats apt.Stats) {
+	pairs := []struct {
+		metric string
+		type_  prometheus.ValueType
+		value  float64
+	}{
+		{metricStatusDatabaseUp, prometheus.GaugeValue, framework.BoolFloat(stats.StatusDatabaseSource.Up)},
+		{metricStatusDatabaseValid, prometheus.GaugeValue, framework.BoolFloat(stats.StatusDatabaseSource.Valid)},
+		{metricStatusDatabaseReadErrors, prometheus.CounterValue, float64(stats.StatusDatabaseSource.ReadErrorsTotal)},
+		{metricStatusDatabaseParseErrors, prometheus.CounterValue, float64(stats.StatusDatabaseSource.ParseErrorsTotal)},
+		{metricAPTListsUp, prometheus.GaugeValue, framework.BoolFloat(stats.APTListsSource.Up)},
+		{metricAPTListsValid, prometheus.GaugeValue, framework.BoolFloat(stats.APTListsSource.Valid)},
+		{metricAPTListsReadErrors, prometheus.CounterValue, float64(stats.APTListsSource.ReadErrorsTotal)},
+		{metricAPTListsParseErrors, prometheus.CounterValue, float64(stats.APTListsSource.ParseErrorsTotal)},
+	}
+	for _, pair := range pairs {
+		ch <- prometheus.MustNewConstMetric(ctx.Descriptors.Get(pair.metric), pair.type_, pair.value)
+	}
+}
+
 func LogFeatureSnapshotError(ctx featurekit.FeatureMetricsContext[Snapshot], logger *slog.Logger, snapshot Snapshot) {
 	if snapshot.pkg.Err != nil {
 		logger.Error(
@@ -168,13 +191,9 @@ func packageCollectionObservations(state *featureMetricState) (uint64, float64, 
 	defer state.mu.Unlock()
 
 	stageCounts := make(map[string]uint64, len(state.stageCollectionCount))
-	for key, value := range state.stageCollectionCount {
-		stageCounts[key] = value
-	}
+	maps.Copy(stageCounts, state.stageCollectionCount)
 	stageSums := make(map[string]float64, len(state.stageCollectionSum))
-	for key, value := range state.stageCollectionSum {
-		stageSums[key] = value
-	}
+	maps.Copy(stageSums, state.stageCollectionSum)
 	return state.collectionCount, state.collectionSum, stageCounts, stageSums
 }
 

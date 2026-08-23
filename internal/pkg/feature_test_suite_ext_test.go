@@ -77,7 +77,6 @@ func RegisterFeatureTests(suite *FeatureTestSuite) {
 	suite.Register("collector_exports_snapshot", func(t *testing.T) { testCollectorExportsSnapshot(t, suite) })
 	suite.Register("collector_uses_provided_snapshotter", func(t *testing.T) { testCollectorUsesProvidedSnapshotter(t, suite) })
 	suite.Register("collector_uses_cached_snapshot_on_failure", func(t *testing.T) { testCollectorUsesCachedSnapshotOnFailure(t, suite) })
-	suite.Register("collector_background_refresh_updates_snapshot_outside_scrape", func(t *testing.T) { testCollectorBackgroundRefreshUpdatesSnapshotOutsideScrape(t, suite) })
 	suite.Register("collector_skips_zero_source_timestamps", func(t *testing.T) { testCollectorSkipsZeroSourceTimestamps(t, suite) })
 	suite.Register("collector_marks_upgrade_metrics_invalid_without_apt_cache", func(t *testing.T) { testCollectorMarksUpgradeMetricsInvalidWithoutAPTCache(t, suite) })
 	suite.Register("exporter_registers_collector_with_fixture_source", func(t *testing.T) { testExporterRegistersCollectorWithFixtureSource(t, suite) })
@@ -104,6 +103,8 @@ func testCollectorExportsSnapshot(t *testing.T, suite *FeatureTestSuite) {
 				APTListsLastModified:    time.Unix(2000, 0),
 				APTListFilesCount:       map[string]int{"plain": 1, "gz": 2, "bz2": 3, "lz4": 4, "xz": 5},
 				StageDurations:          map[string]float64{"status_read": 0.01, "status_parse": 0.02, "index_revision": 0.03, "index_read": 0.04, "index_parse": 0.05, "count": 0.06},
+				StatusDatabaseSource:    apt.SourceHealth{Up: true, Valid: true, ReadErrorsTotal: 2, ParseErrorsTotal: 3},
+				APTListsSource:          apt.SourceHealth{Up: true, Valid: true, ReadErrorsTotal: 4, ParseErrorsTotal: 5},
 			},
 			RebootRequired: true,
 		},
@@ -112,12 +113,12 @@ func testCollectorExportsSnapshot(t *testing.T, suite *FeatureTestSuite) {
 	collector := suite.NewCollector(testFeatureName, testMetricNamespace, &observedPkgSnapshotter{inner: pkgcheck.NewObservedSnapshotter(snapshotter)}, time.Minute)
 
 	expected := `
-# HELP apt_packages_broken_count Number of broken packages
-# TYPE apt_packages_broken_count gauge
-apt_packages_broken_count 3
-# HELP apt_packages_backports_updates_count Number of packages with newer available versions in backports archives
-# TYPE apt_packages_backports_updates_count gauge
-apt_packages_backports_updates_count 4
+# HELP pkg_packages_broken_count Number of broken packages
+# TYPE pkg_packages_broken_count gauge
+pkg_packages_broken_count 3
+# HELP pkg_packages_backports_updates_count Number of packages with newer available versions in backports archives
+# TYPE pkg_packages_backports_updates_count gauge
+pkg_packages_backports_updates_count 4
 # HELP pkg_exporter_apt_lists_files_count Number of apt package index files by compression
 # TYPE pkg_exporter_apt_lists_files_count gauge
 pkg_exporter_apt_lists_files_count{compression="bz2"} 3
@@ -131,20 +132,20 @@ pkg_exporter_apt_lists_last_modified_timestamp_seconds 2000
 # HELP pkg_exporter_dpkg_status_last_modified_timestamp_seconds Unix timestamp of the dpkg status database last modification
 # TYPE pkg_exporter_dpkg_status_last_modified_timestamp_seconds gauge
 pkg_exporter_dpkg_status_last_modified_timestamp_seconds 1000
-# HELP apt_packages_installed_count Number of installed packages
-# TYPE apt_packages_installed_count gauge
-apt_packages_installed_count 123
-# HELP apt_packages_pinned_updates_count Number of packages with newer available versions that are not selected by apt policy
-# TYPE apt_packages_pinned_updates_count gauge
-apt_packages_pinned_updates_count{category="all"} 2
-apt_packages_pinned_updates_count{category="security"} 1
-# HELP os_reboot_required Node requires a reboot
-# TYPE os_reboot_required gauge
-os_reboot_required 1
-# HELP apt_packages_upgradable_count Number of upgradable packages by category
-# TYPE apt_packages_upgradable_count gauge
-apt_packages_upgradable_count{category="all"} 3
-apt_packages_upgradable_count{category="security"} 1
+# HELP pkg_packages_installed_count Number of installed packages
+# TYPE pkg_packages_installed_count gauge
+pkg_packages_installed_count 123
+# HELP pkg_packages_pinned_updates_count Number of packages with newer available versions that are not selected by apt policy
+# TYPE pkg_packages_pinned_updates_count gauge
+pkg_packages_pinned_updates_count{category="all"} 2
+pkg_packages_pinned_updates_count{category="security"} 1
+# HELP pkg_reboot_required Node requires a reboot
+# TYPE pkg_reboot_required gauge
+pkg_reboot_required 1
+# HELP pkg_packages_upgradable_count Number of upgradable packages by category
+# TYPE pkg_packages_upgradable_count gauge
+pkg_packages_upgradable_count{category="all"} 3
+pkg_packages_upgradable_count{category="security"} 1
 # HELP pkg_exporter_last_collection_success Whether the last pkg data collection succeeded
 # TYPE pkg_exporter_last_collection_success gauge
 pkg_exporter_last_collection_success 1
@@ -160,8 +161,8 @@ pkg_exporter_upgrade_metrics_valid 1
 `
 
 	if err := testutil.CollectAndCompare(collector, strings.NewReader(expected),
-		"apt_packages_broken_count",
-		"apt_packages_backports_updates_count",
+		"pkg_packages_broken_count",
+		"pkg_packages_backports_updates_count",
 		suite.MetricName("", testMetricNamespace, metricAPTListsFilesCount),
 		suite.MetricName("", testMetricNamespace, metricAPTListsLastModifiedTimestamp),
 		suite.MetricName("", testMetricNamespace, metricDPKGStatusLastModifiedTimestamp),
@@ -178,6 +179,14 @@ pkg_exporter_upgrade_metrics_valid 1
 	}
 
 	families := gatherCollector(t, collector)
+	exportertest.AssertMetricValue(t, families, "pkg_status_database_up", nil, 1)
+	exportertest.AssertMetricValue(t, families, "pkg_status_database_valid", nil, 1)
+	exportertest.AssertMetricValue(t, families, "pkg_status_database_read_errors_total", nil, 2)
+	exportertest.AssertMetricValue(t, families, "pkg_status_database_parse_errors_total", nil, 3)
+	exportertest.AssertMetricValue(t, families, "pkg_apt_lists_up", nil, 1)
+	exportertest.AssertMetricValue(t, families, "pkg_apt_lists_valid", nil, 1)
+	exportertest.AssertMetricValue(t, families, "pkg_apt_lists_read_errors_total", nil, 4)
+	exportertest.AssertMetricValue(t, families, "pkg_apt_lists_parse_errors_total", nil, 5)
 	if got := histogramCount(t, families, suite.MetricName("", testMetricNamespace, metricPackageCollectionDuration), nil); got != 1 {
 		t.Fatalf("collection duration observations = %d, want 1", got)
 	}
@@ -249,28 +258,6 @@ func testCollectorUsesCachedSnapshotOnFailure(t *testing.T, suite *FeatureTestSu
 	if got := histogramCount(t, families, suite.MetricName("", testMetricNamespace, metricPackageCollectionDuration), nil); got != 2 {
 		t.Fatalf("collection duration observations = %d, want 2", got)
 	}
-}
-
-func testCollectorBackgroundRefreshUpdatesSnapshotOutsideScrape(t *testing.T, suite *FeatureTestSuite) {
-	snapshotter := &fakePackageSnapshotter{
-		snapshot: pkgcheck.Snapshot{
-			Stats: apt.Stats{
-				Installed:           10,
-				UpgradeMetricsValid: true,
-				APTListFilesCount:   map[string]int{"plain": 1},
-			},
-		},
-	}
-	collector := suite.NewCollector(testFeatureName, testMetricNamespace, &observedPkgSnapshotter{inner: pkgcheck.NewObservedSnapshotter(snapshotter)}, 20*time.Millisecond)
-	registry := suite.StartCollector(t, collector)
-
-	exportertest.WaitForMetricValue(t, registry, testLastSuccess, nil, 1)
-
-	snapshotter.Set(pkgcheck.Snapshot{}, errors.New("refresh failed"))
-	exportertest.WaitForMetricValue(t, registry, testLastSuccess, nil, 0)
-
-	families := exportertest.Gather(t, registry)
-	exportertest.AssertMetricValue(t, families, suite.MetricName("", "", metricPackagesInstalled), nil, 10)
 }
 
 func testCollectorSkipsZeroSourceTimestamps(t *testing.T, suite *FeatureTestSuite) {

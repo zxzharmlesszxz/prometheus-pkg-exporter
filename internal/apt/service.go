@@ -25,6 +25,15 @@ type Stats struct {
 	APTListsLastModified    time.Time
 	APTListFilesCount       map[string]int
 	StageDurations          map[string]float64
+	StatusDatabaseSource    SourceHealth
+	APTListsSource          SourceHealth
+}
+
+type SourceHealth struct {
+	Up               bool
+	Valid            bool
+	ReadErrorsTotal  uint64
+	ParseErrorsTotal uint64
 }
 
 type Collector struct {
@@ -38,6 +47,10 @@ type Collector struct {
 	cachedInstalledRevision   string
 	cacheHits                 uint64
 	cacheMisses               uint64
+	statusReadErrors          uint64
+	statusParseErrors         uint64
+	aptListsReadErrors        uint64
+	aptListsParseErrors       uint64
 }
 
 func NewCollector(source Source, timeout time.Duration) *Collector {
@@ -64,15 +77,24 @@ func (c *Collector) Collect(ctx context.Context) (Stats, error) {
 	statusReadStart := time.Now()
 	if out, err := readWithTimeout[[]byte](ctx, c.timeout, c.source.StatusDatabase); err != nil {
 		stageDurations["status_read"] = time.Since(statusReadStart).Seconds()
+		c.recordStatusReadError()
 		errs = append(errs, fmt.Errorf("status database: %w", err))
 	} else {
 		stageDurations["status_read"] = time.Since(statusReadStart).Seconds()
+		stats.StatusDatabaseSource.Up = true
 		statusParseStart := time.Now()
-		installed = ParseInstalledPackages(string(out))
+		var parseErr error
+		installed, parseErr = ParseInstalledPackagesStrict(string(out))
 		stageDurations["status_parse"] = time.Since(statusParseStart).Seconds()
-		statusLoaded = true
-		stats.Installed = countInstalledPackages(installed)
-		stats.Broken = countBrokenPackages(installed)
+		if parseErr != nil {
+			c.recordStatusParseError()
+			errs = append(errs, fmt.Errorf("status database: %w", parseErr))
+		} else {
+			stats.StatusDatabaseSource.Valid = true
+			statusLoaded = true
+			stats.Installed = countInstalledPackages(installed)
+			stats.Broken = countBrokenPackages(installed)
+		}
 	}
 
 	var available []AvailablePackage
@@ -80,14 +102,29 @@ func (c *Collector) Collect(ctx context.Context) (Stats, error) {
 	if statusLoaded {
 		indexes, upgradeMetricsValid, err := c.availablePackages(ctx, installed, stageDurations)
 		if err != nil {
+			if isPackageIndexReadError(err) {
+				c.recordAPTListsReadError()
+			} else {
+				stats.APTListsSource.Up = true
+				c.recordAPTListsParseError()
+			}
 			errs = append(errs, fmt.Errorf("package indexes: %w", err))
 		} else {
+			stats.APTListsSource.Up = true
+			stats.APTListsSource.Valid = upgradeMetricsValid
 			available = indexes
 			stats.UpgradeMetricsValid = upgradeMetricsValid
 			indexesLoaded = true
 		}
-	} else if _, err := readWithTimeout[[]PackageIndex](ctx, c.timeout, c.source.PackageIndexes); err != nil {
-		errs = append(errs, fmt.Errorf("package indexes: %w", err))
+	} else {
+		indexes, err := readWithTimeout[[]PackageIndex](ctx, c.timeout, c.source.PackageIndexes)
+		if err != nil {
+			c.recordAPTListsReadError()
+			errs = append(errs, fmt.Errorf("package indexes: %w", err))
+		} else {
+			stats.APTListsSource.Up = true
+			stats.APTListsSource.Valid = len(indexes) > 0
+		}
 	}
 
 	if statusLoaded && indexesLoaded {
@@ -102,6 +139,7 @@ func (c *Collector) Collect(ctx context.Context) (Stats, error) {
 	}
 
 	if metadata, err := c.sourceMetadata(ctx); err != nil {
+		c.recordAPTListsReadError()
 		errs = append(errs, fmt.Errorf("source metadata: %w", err))
 	} else if metadata != nil {
 		stats.DPKGStatusLastModified = metadata.DPKGStatusLastModified
@@ -111,7 +149,39 @@ func (c *Collector) Collect(ctx context.Context) (Stats, error) {
 	}
 
 	stats.PackageIndexCacheHits, stats.PackageIndexCacheMisses = c.packageIndexCacheStats()
+	stats.StatusDatabaseSource.ReadErrorsTotal, stats.StatusDatabaseSource.ParseErrorsTotal,
+		stats.APTListsSource.ReadErrorsTotal, stats.APTListsSource.ParseErrorsTotal = c.sourceErrorStats()
 	return stats, errors.Join(errs...)
+}
+
+func (c *Collector) recordStatusReadError() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.statusReadErrors++
+}
+
+func (c *Collector) recordStatusParseError() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.statusParseErrors++
+}
+
+func (c *Collector) recordAPTListsReadError() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.aptListsReadErrors++
+}
+
+func (c *Collector) recordAPTListsParseError() {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	c.aptListsParseErrors++
+}
+
+func (c *Collector) sourceErrorStats() (uint64, uint64, uint64, uint64) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	return c.statusReadErrors, c.statusParseErrors, c.aptListsReadErrors, c.aptListsParseErrors
 }
 
 func (c *Collector) availablePackages(ctx context.Context, installed []InstalledPackage, stageDurations map[string]float64) ([]AvailablePackage, bool, error) {
@@ -162,7 +232,7 @@ func (c *Collector) readAvailablePackages(ctx context.Context, installed []Insta
 		streams, err := readWithTimeout[[]PackageIndexStream](ctx, c.timeout, streamer.PackageIndexStreams)
 		stageDurations["index_read"] = time.Since(indexReadStart).Seconds()
 		if err != nil {
-			return nil, false, err
+			return nil, false, fmt.Errorf("%w: %v", errPackageIndexRead, err)
 		}
 		indexParseStart := time.Now()
 		available, err := ParseAvailablePackagesFromStreams(streams, installed)
@@ -177,7 +247,7 @@ func (c *Collector) readAvailablePackages(ctx context.Context, installed []Insta
 	indexes, err := readWithTimeout[[]PackageIndex](ctx, c.timeout, c.source.PackageIndexes)
 	stageDurations["index_read"] = time.Since(indexReadStart).Seconds()
 	if err != nil {
-		return nil, false, err
+		return nil, false, fmt.Errorf("%w: %v", errPackageIndexRead, err)
 	}
 	indexParseStart := time.Now()
 	available := ParseAvailablePackagesForInstalled(indexes, installed)
@@ -200,7 +270,7 @@ func (c *Collector) packageIndexRevision(ctx context.Context, stageDurations map
 	revision, err := readWithTimeout[string](ctx, c.timeout, revisioner.PackageIndexRevision)
 	stageDurations["index_revision"] = time.Since(indexRevisionStart).Seconds()
 	if err != nil {
-		return "", false, err
+		return "", false, fmt.Errorf("%w: %v", errPackageIndexRead, err)
 	}
 	return revision, true, nil
 }
