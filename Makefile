@@ -9,12 +9,12 @@ help: ## Show available make targets.
 
 fmt: ## Format Go files.
 	@set -e; \
-	files="$$($(GO) list -f '{{range .GoFiles}}{{$$.Dir}}/{{.}} {{end}}{{range .TestGoFiles}}{{$$.Dir}}/{{.}} {{end}}' ./...)"; \
+	files="$$($(GO) list -buildvcs=false -f '{{range .GoFiles}}{{$$.Dir}}/{{.}} {{end}}{{range .TestGoFiles}}{{$$.Dir}}/{{.}} {{end}}' ./...)"; \
 	$(GOFMT) -w $$files
 
 fmt-check: ## Check Go formatting.
 	@set -e; \
-	files="$$($(GO) list -f '{{range .GoFiles}}{{$$.Dir}}/{{.}} {{end}}{{range .TestGoFiles}}{{$$.Dir}}/{{.}} {{end}}' ./...)"; \
+	files="$$($(GO) list -buildvcs=false -f '{{range .GoFiles}}{{$$.Dir}}/{{.}} {{end}}{{range .TestGoFiles}}{{$$.Dir}}/{{.}} {{end}}' ./...)"; \
 	test -z "$$($(GOFMT) -l $$files)"
 
 print-ldflags: ## Print linker flags for external build integrations.
@@ -75,7 +75,7 @@ release-smoke: release ## Build release archives and smoke-test the native archi
 	"$$binary" --version 2>&1 | grep -F "$(VERSION)" >/dev/null
 
 vet: ## Run go vet.
-	$(GO) vet ./...
+	$(GO) vet -buildvcs=false ./...
 
 staticcheck: ## Run staticcheck.
 	GOFLAGS="$(strip $(GOFLAGS) $(STATICCHECK_GOFLAGS))" $(STATICCHECK) ./...
