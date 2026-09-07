@@ -1,6 +1,6 @@
 ARG PROJECT_NAME=exporter
 
-FROM golang:1.27.0 AS build
+FROM golang:1.27.1 AS build
 
 WORKDIR /src
 
