@@ -4,6 +4,154 @@ rule_files:
 evaluation_interval: 1m
 
 tests:
+  - name: Exporter collection health alerts honor hold times
+    interval: 1m
+    input_series:
+      - series: 'up{job="pkg-exporter",instance="down"}'
+        values: '0x40'
+      - series: 'pkg_exporter_last_collection_success{job="pkg-exporter",instance="failed"}'
+        values: '0x40'
+      - series: 'pkg_exporter_last_successful_collection_timestamp_seconds{job="pkg-exporter",instance="stale"}'
+        values: '1x40'
+    alert_rule_test:
+      - eval_time: 6m
+        alertname: PkgExporterDown
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job: pkg-exporter
+              instance: down
+            exp_annotations:
+              summary: Package exporter is down (down)
+              description: |
+                Prometheus cannot scrape prometheus-pkg-exporter for at least 5 minutes.
+      - eval_time: 11m
+        alertname: PkgExporterCollectionFailed
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: pkg-exporter
+              instance: failed
+            exp_annotations:
+              summary: Package exporter collection is failing (failed)
+              description: |
+                prometheus-pkg-exporter has not completed a successful collection for at least 10 minutes.
+      - eval_time: 16m
+        alertname: PkgExporterCollectionStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: pkg-exporter
+              instance: stale
+            exp_annotations:
+              summary: Package exporter collection is stale (stale)
+              description: |
+                prometheus-pkg-exporter has not refreshed package data successfully for more than 5 minutes.
+
+  - name: Collection performance alerts use rates
+    interval: 1m
+    input_series:
+      - series: 'pkg_exporter_package_collection_duration_seconds_bucket{job="pkg-exporter",instance="slow",le="10"}'
+        values: '0+0x40'
+      - series: 'pkg_exporter_package_collection_duration_seconds_bucket{job="pkg-exporter",instance="slow",le="20"}'
+        values: '0+1x40'
+      - series: 'pkg_exporter_package_collection_duration_seconds_bucket{job="pkg-exporter",instance="slow",le="+Inf"}'
+        values: '0+1x40'
+      - series: 'pkg_exporter_package_index_cache_misses_total{job="pkg-exporter",instance="cache-miss"}'
+        values: '0+2x40'
+    alert_rule_test:
+      - eval_time: 31m
+        alertname: PkgExporterCollectionSlow
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              instance: slow
+            exp_annotations:
+              summary: Package exporter collection is slow (slow)
+              description: |
+                The 95th percentile package collection duration is above 10 seconds for at least 15 minutes.
+      - eval_time: 31m
+        alertname: PkgExporterPackageIndexCacheMissRateHigh
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: pkg-exporter
+              instance: cache-miss
+            exp_annotations:
+              summary: Package exporter package index cache miss rate is high (cache-miss)
+              description: |
+                prometheus-pkg-exporter is reparsing apt package indexes more often than expected.
+
+  - name: Package state alerts report current problems
+    interval: 1m
+    input_series:
+      - series: 'pkg_exporter_upgrade_metrics_valid{job="pkg-exporter",instance="missing-cache"}'
+        values: '0x40'
+      - series: 'pkg_packages_broken_count{job="pkg-exporter",instance="broken"}'
+        values: '1x40'
+    alert_rule_test:
+      - eval_time: 31m
+        alertname: PkgPackageIndexCacheMissing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: pkg-exporter
+              instance: missing-cache
+            exp_annotations:
+              summary: APT package index cache is missing (missing-cache)
+              description: |
+                prometheus-pkg-exporter sees no apt package index files in /var/lib/apt/lists. Upgrade-related metrics are unknown until apt cache is populated.
+      - eval_time: 16m
+        alertname: PkgBrokenPackagesPresent
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: pkg-exporter
+              instance: broken
+            exp_annotations:
+              summary: Broken Debian packages detected (broken)
+              description: |
+                The exporter reports one or more broken packages from apt diagnostics.
+
+  - name: Stale package index cache honors hold time
+    interval: 1m
+    input_series:
+      - series: 'pkg_exporter_apt_lists_last_modified_timestamp_seconds{job="pkg-exporter",instance="stale-cache"}'
+        values: '1x3300'
+      - series: 'pkg_exporter_upgrade_metrics_valid{job="pkg-exporter",instance="stale-cache"}'
+        values: '1x3300'
+    alert_rule_test:
+      - eval_time: 3242m
+        alertname: PkgPackageIndexCacheStale
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              job: pkg-exporter
+              instance: stale-cache
+            exp_annotations:
+              summary: APT package index cache is stale (stale-cache)
+              description: |
+                The newest apt package index or release metadata file is older than 48 hours. Upgrade-related metrics may be based on stale apt metadata.
+
+  - name: Available update alerts remain pending before long hold times
+    interval: 1m
+    input_series:
+      - series: 'pkg_packages_upgradable_count{job="pkg-exporter",instance="security",category="security"}'
+        values: '2x2'
+      - series: 'pkg_exporter_upgrade_metrics_valid{job="pkg-exporter",instance="security"}'
+        values: '1x2'
+      - series: 'pkg_packages_upgradable_count{job="pkg-exporter",instance="updates",category="all"}'
+        values: '3x2'
+      - series: 'pkg_exporter_upgrade_metrics_valid{job="pkg-exporter",instance="updates"}'
+        values: '1x2'
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: PkgSecurityUpdatesAvailable
+        exp_alerts: []
+      - eval_time: 1m
+        alertname: PkgUpdatesAvailable
+        exp_alerts: []
+
   - name: Package source state alerts use latest-scrape gauges
     interval: 1m
     input_series:

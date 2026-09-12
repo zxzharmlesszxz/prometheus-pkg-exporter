@@ -1,0 +1,404 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: prometheus-pkg-exporter
+    folder: Exporters
+    interval: 1m
+    rules:
+      - uid: pkg-exporter-down
+        title: PkgExporterDown
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 1800, to: 0}
+            datasourceUid: DS_PROMETHEUS
+            model:
+              editorMode: code
+              expr: up{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 0
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - &present
+            refId: B
+            datasourceUid: __expr__
+            model:
+              datasource: {type: __expr__, uid: __expr__}
+              expression: $A >= 0
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: B
+              type: math
+        noDataState: OK
+        execErrState: Error
+        for: 5m
+        annotations:
+          summary: Package exporter is down ({{ $labels.instance }})
+          description: |
+            Prometheus cannot scrape prometheus-pkg-exporter for at least 5 minutes.
+        labels:
+          severity: critical
+        isPaused: false
+
+      - uid: pkg-collection-failed
+        title: PkgExporterCollectionFailed
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 1800, to: 0}
+            datasourceUid: DS_PROMETHEUS
+            model:
+              editorMode: code
+              expr: pkg_exporter_last_collection_success{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 0
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - *present
+        noDataState: OK
+        execErrState: Error
+        for: 10m
+        annotations:
+          summary: Package exporter collection is failing ({{ $labels.instance }})
+          description: |
+            prometheus-pkg-exporter has not completed a successful collection for at least 10 minutes.
+        labels:
+          severity: warning
+        isPaused: false
+
+      - uid: pkg-collection-stale
+        title: PkgExporterCollectionStale
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 1800, to: 0}
+            datasourceUid: DS_PROMETHEUS
+            model:
+              editorMode: code
+              expr: time() - (pkg_exporter_last_successful_collection_timestamp_seconds{job=~"^(prometheus[_-])?pkg[_-]exporter$"} > 0) > 300
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - *present
+        noDataState: OK
+        execErrState: Error
+        for: 10m
+        annotations:
+          summary: Package exporter collection is stale ({{ $labels.instance }})
+          description: |
+            prometheus-pkg-exporter has not refreshed package data successfully for more than 5 minutes.
+        labels:
+          severity: warning
+        isPaused: false
+
+      - uid: pkg-source-unreadable
+        title: PkgPackageSourceUnreadable
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 1800, to: 0}
+            datasourceUid: DS_PROMETHEUS
+            model:
+              editorMode: code
+              expr: pkg_status_database_up{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 0 or pkg_apt_lists_up{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 0
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - *present
+        noDataState: OK
+        execErrState: Error
+        for: 10m
+        annotations:
+          summary: Package source is unreadable ({{ $labels.instance }})
+          description: |
+            The exporter cannot read the dpkg status database or apt lists source.
+        labels:
+          severity: warning
+        isPaused: false
+
+      - uid: pkg-source-invalid
+        title: PkgPackageSourceInvalid
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 1800, to: 0}
+            datasourceUid: DS_PROMETHEUS
+            model:
+              editorMode: code
+              expr: pkg_status_database_valid{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 0 or pkg_apt_lists_valid{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 0
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - *present
+        noDataState: OK
+        execErrState: Error
+        for: 10m
+        annotations:
+          summary: Package source is invalid ({{ $labels.instance }})
+          description: |
+            The dpkg status database or apt lists source did not produce valid package data.
+        labels:
+          severity: warning
+        isPaused: false
+
+      - uid: pkg-source-read-errors
+        title: PkgPackageSourceReadErrors
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 1800, to: 0}
+            datasourceUid: DS_PROMETHEUS
+            model:
+              editorMode: code
+              expr: increase(pkg_status_database_read_errors_total{job=~"^(prometheus[_-])?pkg[_-]exporter$"}[30m]) > 0 or increase(pkg_apt_lists_read_errors_total{job=~"^(prometheus[_-])?pkg[_-]exporter$"}[30m]) > 0
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - *present
+        noDataState: OK
+        execErrState: Error
+        annotations:
+          summary: Package source read errors detected ({{ $labels.instance }})
+          description: |
+            One or more package source reads failed during the last 30 minutes.
+        labels:
+          severity: warning
+        isPaused: false
+
+      - uid: pkg-source-parse-errors
+        title: PkgPackageSourceParseErrors
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 1800, to: 0}
+            datasourceUid: DS_PROMETHEUS
+            model:
+              editorMode: code
+              expr: increase(pkg_status_database_parse_errors_total{job=~"^(prometheus[_-])?pkg[_-]exporter$"}[30m]) > 0 or increase(pkg_apt_lists_parse_errors_total{job=~"^(prometheus[_-])?pkg[_-]exporter$"}[30m]) > 0
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - *present
+        noDataState: OK
+        execErrState: Error
+        annotations:
+          summary: Package source parse errors detected ({{ $labels.instance }})
+          description: |
+            One or more package sources could not be parsed during the last 30 minutes.
+        labels:
+          severity: warning
+        isPaused: false
+
+      - uid: pkg-collection-slow
+        title: PkgExporterCollectionSlow
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 1800, to: 0}
+            datasourceUid: DS_PROMETHEUS
+            model:
+              editorMode: code
+              expr: histogram_quantile(0.95, sum by (instance, le) (rate(pkg_exporter_package_collection_duration_seconds_bucket{job=~"^(prometheus[_-])?pkg[_-]exporter$"}[15m]))) > 10
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - *present
+        noDataState: OK
+        execErrState: Error
+        for: 15m
+        annotations:
+          summary: Package exporter collection is slow ({{ $labels.instance }})
+          description: |
+            The 95th percentile package collection duration is above 10 seconds for at least 15 minutes.
+        labels:
+          severity: warning
+        isPaused: false
+
+      - uid: pkg-index-cache-miss-rate
+        title: PkgExporterPackageIndexCacheMissRateHigh
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 1800, to: 0}
+            datasourceUid: DS_PROMETHEUS
+            model:
+              editorMode: code
+              expr: rate(pkg_exporter_package_index_cache_misses_total{job=~"^(prometheus[_-])?pkg[_-]exporter$"}[15m]) > 0.02
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - *present
+        noDataState: OK
+        execErrState: Error
+        for: 15m
+        annotations:
+          summary: Package exporter package index cache miss rate is high ({{ $labels.instance }})
+          description: |
+            prometheus-pkg-exporter is reparsing apt package indexes more often than expected.
+        labels:
+          severity: warning
+        isPaused: false
+
+      - uid: pkg-index-cache-missing
+        title: PkgPackageIndexCacheMissing
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 1800, to: 0}
+            datasourceUid: DS_PROMETHEUS
+            model:
+              editorMode: code
+              expr: pkg_exporter_upgrade_metrics_valid{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 0
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - *present
+        noDataState: OK
+        execErrState: Error
+        for: 30m
+        annotations:
+          summary: APT package index cache is missing ({{ $labels.instance }})
+          description: |
+            prometheus-pkg-exporter sees no apt package index files in /var/lib/apt/lists. Upgrade-related metrics are unknown until apt cache is populated.
+        labels:
+          severity: warning
+        isPaused: false
+
+      - uid: pkg-index-cache-stale
+        title: PkgPackageIndexCacheStale
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 1800, to: 0}
+            datasourceUid: DS_PROMETHEUS
+            model:
+              editorMode: code
+              expr: time() - (pkg_exporter_apt_lists_last_modified_timestamp_seconds{job=~"^(prometheus[_-])?pkg[_-]exporter$"} > 0) > 172800 and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 1
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - *present
+        noDataState: OK
+        execErrState: Error
+        for: 6h
+        annotations:
+          summary: APT package index cache is stale ({{ $labels.instance }})
+          description: |
+            The newest apt package index or release metadata file is older than 48 hours. Upgrade-related metrics may be based on stale apt metadata.
+        labels:
+          severity: warning
+        isPaused: false
+
+      - uid: pkg-broken-packages
+        title: PkgBrokenPackagesPresent
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 1800, to: 0}
+            datasourceUid: DS_PROMETHEUS
+            model:
+              editorMode: code
+              expr: pkg_packages_broken_count{job=~"^(prometheus[_-])?pkg[_-]exporter$"} > 0
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - *present
+        noDataState: OK
+        execErrState: Error
+        for: 15m
+        annotations:
+          summary: Broken Debian packages detected ({{ $labels.instance }})
+          description: |
+            The exporter reports one or more broken packages from apt diagnostics.
+        labels:
+          severity: warning
+        isPaused: false
+
+      - uid: pkg-security-updates
+        title: PkgSecurityUpdatesAvailable
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 1800, to: 0}
+            datasourceUid: DS_PROMETHEUS
+            model:
+              editorMode: code
+              expr: pkg_packages_upgradable_count{category="security", job=~"^(prometheus[_-])?pkg[_-]exporter$"} > 0 and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 1
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - *present
+        noDataState: OK
+        execErrState: Error
+        for: 90d
+        annotations:
+          summary: Security package updates are available ({{ $labels.instance }})
+          description: |
+            The node has one or more pending security-related package upgrades.
+        labels:
+          severity: warning
+        isPaused: false
+
+      - uid: pkg-updates
+        title: PkgUpdatesAvailable
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 1800, to: 0}
+            datasourceUid: DS_PROMETHEUS
+            model:
+              editorMode: code
+              expr: pkg_packages_upgradable_count{category="all", job=~"^(prometheus[_-])?pkg[_-]exporter$"} > 0 and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 1
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - *present
+        noDataState: OK
+        execErrState: Error
+        for: 180d
+        annotations:
+          summary: Debian package updates are available ({{ $labels.instance }})
+          description: |
+            The exporter reports pending package upgrades on the node.
+        labels:
+          severity: info
+        isPaused: false
+
+      - uid: pkg-reboot-required
+        title: PkgRebootRequired
+        condition: B
+        data:
+          - refId: A
+            relativeTimeRange: {from: 1800, to: 0}
+            datasourceUid: DS_PROMETHEUS
+            model:
+              editorMode: code
+              expr: pkg_reboot_required{job=~"^(prometheus[_-])?pkg[_-]exporter$"} > 0
+              instant: true
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: A
+          - *present
+        noDataState: OK
+        execErrState: Error
+        for: 30d
+        annotations:
+          summary: Node reboot required after package changes ({{ $labels.instance }})
+          description: |
+            The node exposes /run/reboot-required and should be rebooted when operationally safe.
+        labels:
+          severity: warning
+        isPaused: false

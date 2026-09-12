@@ -222,3 +222,4 @@ The high-level design is documented in [`ARCHITECTURE.md`](ARCHITECTURE.md).
 ## Alert Rules
 
 Example Prometheus alert rules live in [`examples/prometheus/prometheus-pkg-exporter.yml`](examples/prometheus/prometheus-pkg-exporter.yml).
+Equivalent Grafana-managed alert rules live in [`examples/grafana/alerting/prometheus-pkg-exporter.yml`](examples/grafana/alerting/prometheus-pkg-exporter.yml) and are provisioned by the Docker Compose example.
