@@ -2,7 +2,7 @@
   "apiVersion": "dashboard.grafana.app/v2",
   "kind": "Dashboard",
   "metadata": {
-    "name": "pkg-exporter-overview",
+    "name": "prometheus-pkg-exporter",
     "generation": 1,
     "creationTimestamp": "2026-05-13T16:15:54Z",
     "labels": {},
@@ -1297,6 +1297,124 @@
                         "expr": "scrape_samples_post_metric_relabeling{job=~\"$job\"}",
                         "legendFormat": "{{instance}} samples",
                         "range": true
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "timeseries",
+            "version": "13.0.1",
+            "spec": {
+              "options": {
+                "annotations": {
+                  "clustering": -1,
+                  "multiLane": false
+                },
+                "legend": {
+                  "calcs": [
+                    "lastNotNull"
+                  ],
+                  "displayMode": "table",
+                  "placement": "bottom",
+                  "showLegend": true
+                },
+                "tooltip": {
+                  "hideZeros": false,
+                  "mode": "multi",
+                  "sort": "none"
+                }
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "unit": "short",
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      }
+                    ]
+                  },
+                  "color": {
+                    "mode": "palette-classic"
+                  },
+                  "custom": {
+                    "axisBorderShow": false,
+                    "axisCenteredZero": false,
+                    "axisColorMode": "text",
+                    "axisLabel": "",
+                    "axisPlacement": "auto",
+                    "barAlignment": 0,
+                    "barWidthFactor": 0.6,
+                    "drawStyle": "line",
+                    "fillOpacity": 0,
+                    "gradientMode": "none",
+                    "hideFrom": {
+                      "legend": false,
+                      "tooltip": false,
+                      "viz": false
+                    },
+                    "insertNulls": false,
+                    "lineInterpolation": "linear",
+                    "lineWidth": 1,
+                    "pointSize": 5,
+                    "scaleDistribution": {
+                      "type": "linear"
+                    },
+                    "showPoints": "auto",
+                    "showValues": false,
+                    "spanNulls": false,
+                    "stacking": {
+                      "group": "A",
+                      "mode": "none"
+                    },
+                    "thresholdsStyle": {
+                      "mode": "off"
+                    }
+                  }
+                },
+                "overrides": []
+              }
+            }
+          }
+        }
+      },
+      "panel-39": {
+        "kind": "Panel",
+        "spec": {
+          "id": 39,
+          "title": "Exporter New Series Added",
+          "description": "Approximate number of new Prometheus series discovered during each scrape.",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "${DS_PROMETHEUS}"
+                      },
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "scrape_series_added{job=~\"$job\"}",
+                        "legendFormat": "{{instance}} new series",
+                        "range": true,
+                        "instant": false
                       }
                     },
                     "refId": "A",
@@ -3473,6 +3591,17 @@
                         "__name__ 9": true,
                         "__name__ 10": true,
                         "__name__ 11": true,
+                        "environment 2": true,
+                        "environment 3": true,
+                        "environment 4": true,
+                        "environment 5": true,
+                        "environment 6": true,
+                        "environment 7": true,
+                        "environment 8": true,
+                        "environment 9": true,
+                        "environment 10": true,
+                        "environment 11": true,
+                        "environment 12": true,
                         "job": true,
                         "job 1": true,
                         "job 2": true,
@@ -3820,7 +3949,7 @@
                             "type": "value",
                             "options": {
                               "0": {
-                            "text": "Problem",
+                                "text": "Problem",
                                 "color": "red",
                                 "index": 0
                               },
@@ -5719,6 +5848,15 @@
                                     "name": "panel-22"
                                   }
                                 }
+                              },
+                              {
+                                "kind": "AutoGridLayoutItem",
+                                "spec": {
+                                  "element": {
+                                    "kind": "ElementReference",
+                                    "name": "panel-39"
+                                  }
+                                }
                               }
                             ]
                           }
@@ -5763,7 +5901,7 @@
       "hideTimepicker": false,
       "fiscalYearStartMonth": 0
     },
-    "title": "Package Exporter Overview",
+    "title": "Prometheus Package Exporter",
     "variables": [
       {
         "kind": "DatasourceVariable",

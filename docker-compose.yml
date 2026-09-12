@@ -3,20 +3,23 @@ services:
     build:
       context: .
       args:
-        PROJECT_NAME: ${PROJECT_NAME:-exporter}
-        LDFLAGS: ${LDFLAGS:-}
+        VERSION: ${VERSION:-dev}
+        BRANCH: ${BRANCH:-dev}
+        REVISION: ${REVISION:-dev}
+        BUILD_USER: ${BUILD_USER:-compose}
+        BUILD_DATE: ${BUILD_DATE:-unknown}
     command:
-      - --web.listen-address=:${COMPOSE_EXPORTER_PORT:-9888}
+      - --web.listen-address=:9888
       - --${FEATURE_NAME:-pkg}.config-file=${FEATURE_CONFIG_CONTAINER_PATH:-/etc/prometheus/prometheus-pkg-exporter.yml}
       - --${FEATURE_NAME:-pkg}.refresh-interval=1h
     configs:
       - source: feature_config
         target: ${FEATURE_CONFIG_CONTAINER_PATH:-/etc/prometheus/prometheus-pkg-exporter.yml}
     ports:
-      - "127.0.0.1:${COMPOSE_EXPORTER_PORT:-9888}:${COMPOSE_EXPORTER_PORT:-9888}"
+      - "127.0.0.1:${COMPOSE_EXPORTER_HOST_PORT:-9888}:9888"
 
   prometheus:
-    image: ${PROMETHEUS_IMAGE:-prom/prometheus:v3.13.1}
+    image: ${PROMETHEUS_IMAGE:-prom/prometheus:v3.14.0}
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
@@ -33,7 +36,7 @@ services:
       - ./examples/prometheus/:/etc/prometheus/rules/:ro
 
   grafana:
-    image: ${GRAFANA_IMAGE:-grafana/grafana:13.0.3}
+    image: ${GRAFANA_IMAGE:-grafana/grafana:13.2}
     ports:
       - "127.0.0.1:3000:3000"
     environment:
@@ -47,6 +50,7 @@ services:
         target: /etc/grafana/provisioning/dashboards/dashboards.yml
     volumes:
       - ./examples/grafana/:/var/lib/grafana/dashboards/:ro
+      - ./examples/grafana/alerting/:/etc/grafana/provisioning/alerting/:ro
     depends_on:
       prometheus:
         condition: service_started
@@ -67,7 +71,7 @@ configs:
         - job_name: ${FEATURE_NAME:-pkg}-exporter
           static_configs:
             - targets:
-                - exporter:${COMPOSE_EXPORTER_PORT:-9888}
+                - exporter:9888
   grafana_prometheus_datasource:
     content: |
       apiVersion: 1

@@ -1,6 +1,6 @@
 ---
 
-image: golang:1.27.0-alpine
+image: golang:1.27.1-alpine
 
 before_script:
   - apk add --no-cache bash build-base ca-certificates git make

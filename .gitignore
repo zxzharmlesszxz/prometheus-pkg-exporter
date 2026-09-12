@@ -5,6 +5,7 @@ prometheus-*-exporter
 *.out
 coverage.txt
 coverage.out
+Makefile.local
 .DS_Store
 .idea/
 .vscode/
