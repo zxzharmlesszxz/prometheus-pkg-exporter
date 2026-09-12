@@ -33,8 +33,8 @@ override LDFLAGS = $(call exporter_ldflags,$(VERSION),$(BRANCH),$(REVISION),$(BU
 override DOCKER_PROJECT_NAME := $(PROJECT_NAME)
 override DOCKER_ENTRYPOINT_NAME := $(PROJECT_NAME)
 override DOCKER_SMOKE_METRIC := $(METRIC_NAMESPACE)_upgrade_metrics_valid
-override DOCKER_SMOKE_RUN_OPTIONS := -v "$(CURDIR)/$(FEATURE_CONFIG_PATH):$(FEATURE_CONFIG_CONTAINER_PATH):ro"
-override DOCKER_SMOKE_EXPORTER_ARGS := --$(FEATURE_NAME).config-file=$(FEATURE_CONFIG_CONTAINER_PATH)
+override DOCKER_SMOKE_RUN_OPTIONS := -v "$(CURDIR)/$(FEATURE_CONFIG_PATH):$(FEATURE_CONFIG_CONTAINER_PATH):ro" -v "$(CURDIR)/testdata/dpkg-status:/fixtures/dpkg-status:ro" -v "$(CURDIR)/testdata/apt-lists:/fixtures/apt-lists:ro" -v "$(CURDIR)/testdata/reboot-required:/fixtures/reboot-required:ro"
+override DOCKER_SMOKE_EXPORTER_ARGS := --$(FEATURE_NAME).config-file=$(FEATURE_CONFIG_CONTAINER_PATH) --$(FEATURE_NAME).status-database-path=/fixtures/dpkg-status --$(FEATURE_NAME).apt-lists-path=/fixtures/apt-lists --$(FEATURE_NAME).reboot-required-path=/fixtures/reboot-required
 override DOCKER_SMOKE_EXTRA_METRICS :=
 override DOCKER_SMOKE_PORT := 9900
 override SMOKE_LDFLAGS = $(call exporter_ldflags,$(SMOKE_VERSION),$(SMOKE_BRANCH),$(SMOKE_REVISION),$(SMOKE_BUILD_USER),$(SMOKE_BUILD_DATE))
