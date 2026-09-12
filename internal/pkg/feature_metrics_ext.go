@@ -16,6 +16,8 @@ import (
 type featureMetricState struct {
 	mu                   sync.Mutex
 	lastObservedAttempt  time.Time
+	lastLoggedErrAttempt time.Time
+	hasLoggedError       bool
 	collectionCount      uint64
 	collectionSum        float64
 	stageCollectionCount map[string]uint64
@@ -26,7 +28,7 @@ func NewFeatureMetricHandlers() featurekit.FeatureMetricHandlers[Snapshot] {
 	state := &featureMetricState{}
 	return featurekit.FeatureMetricHandlers[Snapshot]{
 		Collect:  state.CollectFeatureMetrics,
-		LogError: LogFeatureSnapshotError,
+		LogError: state.LogFeatureSnapshotError,
 	}
 }
 
@@ -155,13 +157,26 @@ func emitSourceHealthMetrics(ctx featurekit.FeatureMetricsContext[Snapshot], ch 
 	}
 }
 
-func LogFeatureSnapshotError(ctx featurekit.FeatureMetricsContext[Snapshot], logger *slog.Logger, snapshot Snapshot) {
-	if snapshot.pkg.Err != nil {
-		logger.Error(
-			ctx.FeatureName+" package data collection failed",
-			"err", snapshot.pkg.Err,
-		)
+func (state *featureMetricState) LogFeatureSnapshotError(ctx featurekit.FeatureMetricsContext[Snapshot], logger *slog.Logger, snapshot Snapshot) {
+	if snapshot.pkg.Err == nil || !state.markErrorAttemptLogged(snapshot.pkg.AttemptTime) {
+		return
 	}
+	logger.Error(
+		ctx.FeatureName+" package data collection failed",
+		"err", snapshot.pkg.Err,
+	)
+}
+
+func (state *featureMetricState) markErrorAttemptLogged(attempt time.Time) bool {
+	state.mu.Lock()
+	defer state.mu.Unlock()
+
+	if state.hasLoggedError && attempt.Equal(state.lastLoggedErrAttempt) {
+		return false
+	}
+	state.lastLoggedErrAttempt = attempt
+	state.hasLoggedError = true
+	return true
 }
 
 func observePackageSnapshot(state *featureMetricState, snapshot Snapshot) {

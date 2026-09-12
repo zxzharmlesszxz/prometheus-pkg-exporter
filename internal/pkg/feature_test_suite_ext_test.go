@@ -79,9 +79,24 @@ func RegisterFeatureTests(suite *FeatureTestSuite) {
 	suite.Register("collector_uses_cached_snapshot_on_failure", func(t *testing.T) { testCollectorUsesCachedSnapshotOnFailure(t, suite) })
 	suite.Register("collector_skips_zero_source_timestamps", func(t *testing.T) { testCollectorSkipsZeroSourceTimestamps(t, suite) })
 	suite.Register("collector_marks_upgrade_metrics_invalid_without_apt_cache", func(t *testing.T) { testCollectorMarksUpgradeMetricsInvalidWithoutAPTCache(t, suite) })
+	suite.Register("snapshot_error_logging_deduplicates_attempt", testSnapshotErrorLoggingDeduplicatesAttempt)
 	suite.Register("exporter_registers_collector_with_fixture_source", func(t *testing.T) { testExporterRegistersCollectorWithFixtureSource(t, suite) })
 	suite.Register("exporter_runtime_config_normalizes_values", func(t *testing.T) { testExporterRuntimeConfigNormalizesValues(t, suite) })
 	suite.Register("smoke_spec_includes_fixture_args", func(t *testing.T) { testSmokeSpecIncludesFixtureArgs(t, suite) })
+}
+
+func testSnapshotErrorLoggingDeduplicatesAttempt(t *testing.T) {
+	state := &featureMetricState{}
+	firstAttempt := time.Unix(1700000000, 0)
+	if !state.markErrorAttemptLogged(firstAttempt) {
+		t.Fatal("first error for collection attempt was suppressed")
+	}
+	if state.markErrorAttemptLogged(firstAttempt) {
+		t.Fatal("duplicate error for collection attempt was not suppressed")
+	}
+	if !state.markErrorAttemptLogged(firstAttempt.Add(time.Minute)) {
+		t.Fatal("error for new collection attempt was suppressed")
+	}
 }
 
 func testCollectorExportsSnapshot(t *testing.T, suite *FeatureTestSuite) {
