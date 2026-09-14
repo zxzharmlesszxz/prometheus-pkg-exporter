@@ -1,5 +1,12 @@
 # Metrics
 
+## Build Metric
+
+### `pkg_exporter_build_info`
+
+- Type: gauge
+- Value: `1` with framework-supplied exporter build and Go runtime labels
+
 ## Health Metrics
 
 ### `pkg_exporter_last_collection_success`
@@ -48,10 +55,10 @@
 
 - Type: gauge
 - Value:
-  - `1` if `/run/reboot-required` exists
+  - `1` if the configured reboot-required marker exists
   - `0` otherwise
 - Labels: none
-- Notes: host reboot requirement state
+- Notes: defaults to `/run/reboot-required`
 
 ### `pkg_packages_installed_count`
 
@@ -102,8 +109,8 @@
 
 - Type: gauge
 - Value:
-  - `1` when apt package index cache is available and upgrade-related metrics are valid
-  - `0` when apt package index cache is missing and upgrade-related metrics should be treated as unknown
+  - `1` when both configured dpkg and apt sources are usable and upgrade-related metrics are valid
+  - `0` when either source is unusable and upgrade-related metrics should be treated as unknown
 - Labels: none
 - Notes:
   - applies to `pkg_packages_upgradable_count`, `pkg_packages_pinned_updates_count`, and `pkg_packages_backports_updates_count`
@@ -164,6 +171,7 @@ that the latest collection failed.
 - Notes:
   - measures package-specific apt/dpkg collection and reboot marker lookup
   - only new refreshes are observed; serving cached snapshots between refresh intervals does not add observations
+  - finite bucket upper bounds: `0.001`, `0.002`, `0.005`, `0.01`, `0.025`, `0.05`, `0.1`, `0.25`, `0.5`, `1`, `2.5`, `5`, `10`, `15`, `30`, `60`, and `120` seconds
 
 ### `pkg_exporter_collection_stage_duration_seconds`
 
@@ -180,6 +188,7 @@ that the latest collection failed.
   - `count`
 - Notes:
   - cache hits still observe `index_revision`, but do not observe `index_read` or `index_parse`
+  - uses the same finite bucket bounds as `pkg_exporter_package_collection_duration_seconds`
 
 ### `pkg_exporter_package_index_cache_hits_total`
 
@@ -196,11 +205,12 @@ that the latest collection failed.
 ### `pkg_exporter_apt_lists_last_modified_timestamp_seconds`
 
 - Type: gauge
-- Value: Unix timestamp of the newest relevant file in `/var/lib/apt/lists`
+- Value: Unix timestamp of the newest relevant file in the configured apt lists directory
 - Labels: none
 - Notes:
   - considers package index files and release metadata files used by the exporter
   - not emitted when no apt lists timestamp is available
+  - the configured path defaults to `/var/lib/apt/lists`
 
 ### `pkg_exporter_apt_lists_files_count`
 
@@ -221,7 +231,8 @@ that the latest collection failed.
 ### `pkg_exporter_dpkg_status_last_modified_timestamp_seconds`
 
 - Type: gauge
-- Value: Unix timestamp of `/var/lib/dpkg/status` last modification
+- Value: Unix timestamp of the configured dpkg status database last modification
 - Labels: none
 - Notes:
   - not emitted when no dpkg status timestamp is available
+  - the configured path defaults to `/var/lib/dpkg/status`

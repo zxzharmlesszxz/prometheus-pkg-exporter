@@ -95,7 +95,7 @@ var featureMetricSpecs = []featurekit.FeatureMetricSpec{
 		ID:    metricUpgradeMetricsValid,
 		Scope: featurekit.MetricScopeNamespace,
 		Name:  "_upgrade_metrics_valid",
-		Help:  "Whether upgrade-related package metrics are based on available apt package index cache",
+		Help:  "Whether upgrade-related package metrics are based on usable dpkg and apt sources",
 	},
 	{
 		ID:    metricDPKGStatusLastModifiedTimestamp,

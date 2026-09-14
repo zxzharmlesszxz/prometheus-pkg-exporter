@@ -204,7 +204,7 @@ groups:
             datasourceUid: DS_PROMETHEUS
             model:
               editorMode: code
-              expr: histogram_quantile(0.95, sum by (instance, le) (rate(pkg_exporter_package_collection_duration_seconds_bucket{job=~"^(prometheus[_-])?pkg[_-]exporter$"}[15m]))) > 10
+              expr: histogram_quantile(0.95, sum by (instance, job, le) (rate(pkg_exporter_package_collection_duration_seconds_bucket{job=~"^(prometheus[_-])?pkg[_-]exporter$"}[15m]))) > 10
               instant: true
               intervalMs: 1000
               maxDataPoints: 43200
@@ -247,8 +247,8 @@ groups:
           severity: warning
         isPaused: false
 
-      - uid: pkg-index-cache-missing
-        title: PkgPackageIndexCacheMissing
+      - uid: pkg-upgrade-metrics-invalid
+        title: PkgUpgradeMetricsInvalid
         condition: B
         data:
           - refId: A
@@ -266,9 +266,9 @@ groups:
         execErrState: Error
         for: 30m
         annotations:
-          summary: APT package index cache is missing ({{ $labels.instance }})
+          summary: Package upgrade metrics are invalid ({{ $labels.instance }})
           description: |
-            prometheus-pkg-exporter sees no apt package index files in /var/lib/apt/lists. Upgrade-related metrics are unknown until apt cache is populated.
+            The configured package sources did not provide usable dpkg and apt data. Upgrade-related metrics are unknown until both sources are valid.
         labels:
           severity: warning
         isPaused: false
@@ -398,7 +398,7 @@ groups:
         annotations:
           summary: Node reboot required after package changes ({{ $labels.instance }})
           description: |
-            The node exposes /run/reboot-required and should be rebooted when operationally safe.
+            The configured reboot-required marker is present and the node should be rebooted when operationally safe.
         labels:
           severity: warning
         isPaused: false

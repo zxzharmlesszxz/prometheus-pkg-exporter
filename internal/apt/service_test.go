@@ -3,10 +3,12 @@ package apt
 import (
 	"context"
 	"errors"
+	"io"
 	"os"
 	"path/filepath"
 	"strings"
 	"testing"
+	"testing/iotest"
 	"time"
 )
 
@@ -15,6 +17,20 @@ type fakeSource struct {
 	statusErr  error
 	indexes    []PackageIndex
 	indexesErr error
+}
+
+type metadataStreamSource struct {
+	fakeSource
+	metadata SourceMetadata
+	streams  []PackageIndexStream
+}
+
+func (s metadataStreamSource) SourceMetadata(context.Context) (SourceMetadata, error) {
+	return s.metadata, nil
+}
+
+func (s metadataStreamSource) PackageIndexStreams(context.Context) ([]PackageIndexStream, error) {
+	return s.streams, nil
 }
 
 func (s fakeSource) StatusDatabase(context.Context) ([]byte, error) { return s.status, s.statusErr }
@@ -200,6 +216,29 @@ func TestCollectCountsInvalidStatusAsParseError(t *testing.T) {
 	}
 	if stats.StatusDatabaseSource.ParseErrorsTotal != 1 {
 		t.Fatalf("Collect() status parse errors = %d, want 1", stats.StatusDatabaseSource.ParseErrorsTotal)
+	}
+}
+
+func TestCollectKeepsUpgradeMetricsInvalidAfterIndexParseError(t *testing.T) {
+	t.Parallel()
+
+	stats, err := Collect(context.Background(), metadataStreamSource{
+		fakeSource: fakeSource{
+			status: []byte("Package: bash\nStatus: install ok installed\nVersion: 1\nArchitecture: amd64\n"),
+		},
+		metadata: SourceMetadata{APTListFilesByCompression: map[string]int{"plain": 1}},
+		streams: []PackageIndexStream{{
+			Name: "debian_main_Packages",
+			Open: func() (io.ReadCloser, error) {
+				return io.NopCloser(iotest.ErrReader(errors.New("parse failed"))), nil
+			},
+		}},
+	}, time.Second)
+	if err == nil {
+		t.Fatal("Collect() error = nil, want package index parse error")
+	}
+	if stats.UpgradeMetricsValid {
+		t.Fatal("Collect() UpgradeMetricsValid = true after package index parse error")
 	}
 }
 

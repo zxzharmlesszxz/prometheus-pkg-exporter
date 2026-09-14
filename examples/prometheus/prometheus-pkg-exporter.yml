@@ -70,7 +70,7 @@ groups:
             One or more package sources could not be parsed during the last 30 minutes.
 
       - alert: PkgExporterCollectionSlow
-        expr: histogram_quantile(0.95, sum by (instance, le) (rate(pkg_exporter_package_collection_duration_seconds_bucket{job=~"^(prometheus[_-])?pkg[_-]exporter$"}[15m]))) > 10
+        expr: histogram_quantile(0.95, sum by (instance, job, le) (rate(pkg_exporter_package_collection_duration_seconds_bucket{job=~"^(prometheus[_-])?pkg[_-]exporter$"}[15m]))) > 10
         for: '15m'
         labels:
           severity: warning
@@ -89,15 +89,15 @@ groups:
           description: |
             prometheus-pkg-exporter is reparsing apt package indexes more often than expected.
 
-      - alert: PkgPackageIndexCacheMissing
+      - alert: PkgUpgradeMetricsInvalid
         expr: pkg_exporter_upgrade_metrics_valid{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 0
         for: '30m'
         labels:
           severity: warning
         annotations:
-          summary: APT package index cache is missing ({{ $labels.instance }})
+          summary: Package upgrade metrics are invalid ({{ $labels.instance }})
           description: |
-            prometheus-pkg-exporter sees no apt package index files in /var/lib/apt/lists. Upgrade-related metrics are unknown until apt cache is populated.
+            The configured package sources did not provide usable dpkg and apt data. Upgrade-related metrics are unknown until both sources are valid.
 
       - alert: PkgPackageIndexCacheStale
         expr: time() - (pkg_exporter_apt_lists_last_modified_timestamp_seconds{job=~"^(prometheus[_-])?pkg[_-]exporter$"} > 0) > 172800 and on(instance, job) pkg_exporter_upgrade_metrics_valid{job=~"^(prometheus[_-])?pkg[_-]exporter$"} == 1
@@ -147,4 +147,4 @@ groups:
         annotations:
           summary: Node reboot required after package changes ({{ $labels.instance }})
           description: |
-            The node exposes /run/reboot-required and should be rebooted when operationally safe.
+            The configured reboot-required marker is present and the node should be rebooted when operationally safe.

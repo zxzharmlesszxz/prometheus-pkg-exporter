@@ -170,7 +170,7 @@ pkg_exporter_package_index_cache_hits_total 7
 # HELP pkg_exporter_package_index_cache_misses_total Total number of package index cache misses
 # TYPE pkg_exporter_package_index_cache_misses_total counter
 pkg_exporter_package_index_cache_misses_total 2
-# HELP pkg_exporter_upgrade_metrics_valid Whether upgrade-related package metrics are based on available apt package index cache
+# HELP pkg_exporter_upgrade_metrics_valid Whether upgrade-related package metrics are based on usable dpkg and apt sources
 # TYPE pkg_exporter_upgrade_metrics_valid gauge
 pkg_exporter_upgrade_metrics_valid 1
 `
@@ -208,8 +208,14 @@ pkg_exporter_upgrade_metrics_valid 1
 	if got := histogramSum(t, families, suite.MetricName("", testMetricNamespace, metricPackageCollectionDuration), nil); got <= 0 {
 		t.Fatalf("collection duration sum = %v, want positive", got)
 	}
+	if got := histogramBucketCount(t, families, suite.MetricName("", testMetricNamespace, metricPackageCollectionDuration), nil, 10); got != 1 {
+		t.Fatalf("collection duration bucket count = %d, want 1", got)
+	}
 	if got := histogramCount(t, families, suite.MetricName("", testMetricNamespace, metricCollectionStageDuration), map[string]string{"stage": "status_read"}); got != 1 {
 		t.Fatalf("status_read duration observations = %d, want 1", got)
+	}
+	if got := histogramBucketCount(t, families, suite.MetricName("", testMetricNamespace, metricCollectionStageDuration), map[string]string{"stage": "status_read"}, 0.1); got != 1 {
+		t.Fatalf("status_read duration bucket count = %d, want 1", got)
 	}
 }
 
@@ -298,7 +304,7 @@ func testCollectorMarksUpgradeMetricsInvalidWithoutAPTCache(t *testing.T, suite 
 	})}, time.Minute)
 
 	expected := `
-# HELP pkg_exporter_upgrade_metrics_valid Whether upgrade-related package metrics are based on available apt package index cache
+# HELP pkg_exporter_upgrade_metrics_valid Whether upgrade-related package metrics are based on usable dpkg and apt sources
 # TYPE pkg_exporter_upgrade_metrics_valid gauge
 pkg_exporter_upgrade_metrics_valid 0
 `
@@ -420,4 +426,17 @@ func histogramSum(t *testing.T, families []*dto.MetricFamily, name string, label
 
 	histogram := exportertest.Histogram(t, families, name, labels)
 	return histogram.GetSampleSum()
+}
+
+func histogramBucketCount(t *testing.T, families []*dto.MetricFamily, name string, labels map[string]string, upperBound float64) uint64 {
+	t.Helper()
+
+	histogram := exportertest.Histogram(t, families, name, labels)
+	for _, bucket := range histogram.GetBucket() {
+		if bucket.GetUpperBound() == upperBound {
+			return bucket.GetCumulativeCount()
+		}
+	}
+	t.Fatalf("histogram %s has no bucket %v", name, upperBound)
+	return 0
 }

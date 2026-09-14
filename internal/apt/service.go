@@ -145,7 +145,6 @@ func (c *Collector) Collect(ctx context.Context) (Stats, error) {
 		stats.DPKGStatusLastModified = metadata.DPKGStatusLastModified
 		stats.APTListsLastModified = metadata.APTListsLastModified
 		stats.APTListFilesCount = metadata.APTListFilesByCompression
-		stats.UpgradeMetricsValid = aptListFilesTotal(metadata.APTListFilesByCompression) > 0
 	}
 
 	stats.PackageIndexCacheHits, stats.PackageIndexCacheMisses = c.packageIndexCacheStats()
@@ -285,14 +284,6 @@ func (c *Collector) sourceMetadata(ctx context.Context) (*SourceMetadata, error)
 		return nil, err
 	}
 	return &metadata, nil
-}
-
-func aptListFilesTotal(counts map[string]int) int {
-	total := 0
-	for _, count := range counts {
-		total += count
-	}
-	return total
 }
 
 func installedPackageRevision(installed []InstalledPackage) string {

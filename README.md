@@ -210,9 +210,10 @@ Tags build release archives and can publish a multi-platform Docker image to the
 Docker image publishing policy:
 
 - branch and pull request pipelines build and smoke-test images but do not push them
-- tag pipelines publish only the matching release tag, for example `v0.1.0`
+- tag pipelines publish the matching release tag, for example `v0.1.0`
 - images are published as multi-architecture `linux/amd64` and `linux/arm64`
-- `latest` and commit SHA tags are not published by default
+- GitHub tag workflows also publish `latest`; GitLab tag pipelines publish only the release tag
+- commit SHA tags are not published by default
 - binary release archives remain the primary non-container distribution
 
 ## Architecture

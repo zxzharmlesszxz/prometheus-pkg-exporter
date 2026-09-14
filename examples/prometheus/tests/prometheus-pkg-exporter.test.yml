@@ -65,6 +65,7 @@ tests:
         exp_alerts:
           - exp_labels:
               severity: warning
+              job: pkg-exporter
               instance: slow
             exp_annotations:
               summary: Package exporter collection is slow (slow)
@@ -91,16 +92,16 @@ tests:
         values: '1x40'
     alert_rule_test:
       - eval_time: 31m
-        alertname: PkgPackageIndexCacheMissing
+        alertname: PkgUpgradeMetricsInvalid
         exp_alerts:
           - exp_labels:
               severity: warning
               job: pkg-exporter
               instance: missing-cache
             exp_annotations:
-              summary: APT package index cache is missing (missing-cache)
+              summary: Package upgrade metrics are invalid (missing-cache)
               description: |
-                prometheus-pkg-exporter sees no apt package index files in /var/lib/apt/lists. Upgrade-related metrics are unknown until apt cache is populated.
+                The configured package sources did not provide usable dpkg and apt data. Upgrade-related metrics are unknown until both sources are valid.
       - eval_time: 16m
         alertname: PkgBrokenPackagesPresent
         exp_alerts:
@@ -234,4 +235,4 @@ tests:
             exp_annotations:
               summary: Node reboot required after package changes (reboot)
               description: |
-                The node exposes /run/reboot-required and should be rebooted when operationally safe.
+                The configured reboot-required marker is present and the node should be rebooted when operationally safe.

@@ -35,8 +35,8 @@
         "kind": "Panel",
         "spec": {
           "id": 1,
-          "title": "Exporter Collection Status",
-          "description": "",
+          "title": "Collection Success",
+          "description": "Ratio of exporter instances whose last framework collection succeeded.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -56,7 +56,7 @@
                         "editorMode": "code",
                         "expr": "sum(pkg_exporter_last_collection_success{job=~\"$job\"}) / count(pkg_exporter_last_collection_success{job=~\"$job\"})",
                         "instant": true,
-                        "legendFormat": "success",
+                        "legendFormat": "success ratio",
                         "range": false
                       }
                     },
@@ -99,12 +99,12 @@
                       "type": "value",
                       "options": {
                         "0": {
-                          "text": "Failed",
+                          "text": "Down",
                           "color": "red",
                           "index": 1
                         },
                         "1": {
-                          "text": "OK",
+                          "text": "Up",
                           "color": "green",
                           "index": 0
                         }
@@ -116,8 +116,8 @@
                         "from": 0,
                         "to": 1,
                         "result": {
-                          "text": "Failed",
-                          "color": "red",
+                          "text": "Degraded",
+                          "color": "yellow",
                           "index": 2
                         }
                       }
@@ -129,6 +129,10 @@
                       {
                         "value": 0,
                         "color": "red"
+                      },
+                      {
+                        "value": 0.999,
+                        "color": "yellow"
                       },
                       {
                         "value": 1,
@@ -150,8 +154,8 @@
         "kind": "Panel",
         "spec": {
           "id": 10,
-          "title": "Last Successful Collection Age",
-          "description": "",
+          "title": "Last Successful Age",
+          "description": "Average age of the latest successful framework collection.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -192,7 +196,7 @@
               "options": {
                 "colorMode": "background",
                 "graphMode": "none",
-                "justifyMode": "auto",
+                "justifyMode": "center",
                 "orientation": "auto",
                 "percentChangeColorMode": "standard",
                 "reduceOptions": {
@@ -209,6 +213,7 @@
               "fieldConfig": {
                 "defaults": {
                   "unit": "s",
+                  "mappings": [],
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
@@ -217,11 +222,11 @@
                         "color": "green"
                       },
                       {
-                        "value": 120,
+                        "value": 300,
                         "color": "yellow"
                       },
                       {
-                        "value": 600,
+                        "value": 900,
                         "color": "red"
                       }
                     ]
@@ -1811,7 +1816,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "histogram_quantile(0.95, sum by (instance, le) (rate(pkg_exporter_package_collection_duration_seconds_bucket{job=~\"$job\"}[5m])))",
+                        "expr": "histogram_quantile(0.95, sum by (instance, job, le) (rate(pkg_exporter_package_collection_duration_seconds_bucket{job=~\"$job\"}[5m])))",
                         "legendFormat": "{{instance}} p95",
                         "range": true
                       }
@@ -1905,7 +1910,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum by (instance) (rate(pkg_exporter_package_collection_duration_seconds_sum{job=~\"$job\"}[5m])) / sum by (instance) (rate(pkg_exporter_package_collection_duration_seconds_count{job=~\"$job\"}[5m]))",
+                        "expr": "sum by (instance, job) (rate(pkg_exporter_package_collection_duration_seconds_sum{job=~\"$job\"}[5m])) / sum by (instance, job) (rate(pkg_exporter_package_collection_duration_seconds_count{job=~\"$job\"}[5m]))",
                         "legendFormat": "{{instance}} avg",
                         "range": true
                       }
@@ -2852,8 +2857,8 @@
         "kind": "Panel",
         "spec": {
           "id": 4,
-          "title": "Reboot Required",
-          "description": "Selected targets with /run/reboot-required present",
+          "title": "Exporter Targets",
+          "description": "Number of exporter targets scraped under the selected job.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -2871,9 +2876,9 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum(pkg_reboot_required{job=~\"$job\"})",
+                        "expr": "count(up{job=~\"$job\"})",
                         "instant": true,
-                        "legendFormat": "reboot_required",
+                        "legendFormat": "targets",
                         "range": false
                       }
                     },
@@ -2894,7 +2899,7 @@
               "options": {
                 "colorMode": "background",
                 "graphMode": "none",
-                "justifyMode": "auto",
+                "justifyMode": "center",
                 "orientation": "auto",
                 "percentChangeColorMode": "standard",
                 "reduceOptions": {
@@ -2910,29 +2915,14 @@
               },
               "fieldConfig": {
                 "defaults": {
-                  "unit": "none",
-                  "mappings": [
-                    {
-                      "type": "value",
-                      "options": {
-                        "0": {
-                          "text": "No",
-                          "color": "green",
-                          "index": 0
-                        }
-                      }
-                    }
-                  ],
+                  "unit": "short",
+                  "mappings": [],
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
                       {
                         "value": 0,
                         "color": "green"
-                      },
-                      {
-                        "value": 1,
-                        "color": "red"
                       }
                     ]
                   },
@@ -3244,7 +3234,7 @@
         "spec": {
           "id": 7,
           "title": "Package Inventory",
-          "description": "Per-target package state, exporter version, apt cache validity, and source freshness",
+          "description": "Per-target package state, apt cache validity, and source freshness",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -3270,29 +3260,6 @@
                       }
                     },
                     "refId": "A",
-                    "hidden": false
-                  }
-                },
-                {
-                  "kind": "PanelQuery",
-                  "spec": {
-                    "query": {
-                      "kind": "DataQuery",
-                      "group": "prometheus",
-                      "version": "v0",
-                      "datasource": {
-                        "name": "${DS_PROMETHEUS}"
-                      },
-                      "spec": {
-                        "editorMode": "code",
-                        "expr": "pkg_exporter_build_info{job=~\"$job\"}",
-                        "instant": true,
-                        "legendFormat": "__auto",
-                        "range": false,
-                        "format": "table"
-                      }
-                    },
-                    "refId": "B",
                     "hidden": false
                   }
                 },
@@ -3620,42 +3587,29 @@
                         "category 3": true,
                         "category 4": true,
                         "category 5": true,
-                        "branch": true,
-                        "goarch": true,
-                        "goos": true,
-                        "goversion": true,
-                        "go_version": true,
-                        "revision": true,
-                        "tags": true,
-                        "build_user": true,
-                        "build_date": true,
-                        "Value #B": true,
                         "Time 12": true,
                         "__name__ 12": true,
                         "job 12": true,
                         "Value #M": false,
-                        "Value #A": false,
-                        "build_info_value": true
+                        "Value #A": false
                       },
                       "indexByName": {
                         "instance": 0,
-                        "Exporter": 1,
-                        "collection_success": 2,
-                        "reboot": 3,
-                        "installed": 4,
-                        "updates": 5,
-                        "security": 6,
-                        "pinned": 7,
-                        "broken": 8,
-                        "backports": 9,
-                        "last_success_age": 10,
-                        "Sources": 11,
-                        "APT lists age": 12,
-                        "DPKG age": 13
+                        "collection_success": 1,
+                        "reboot": 2,
+                        "installed": 3,
+                        "updates": 4,
+                        "security": 5,
+                        "pinned": 6,
+                        "broken": 7,
+                        "backports": 8,
+                        "last_success_age": 9,
+                        "Sources": 10,
+                        "APT lists age": 11,
+                        "DPKG age": 12
                       },
                       "renameByName": {
                         "instance": "instance",
-                        "version": "Exporter",
                         "Value": "installed",
                         "Value #C": "broken",
                         "Value #D": "updates",
@@ -3668,8 +3622,7 @@
                         "Value #K": "DPKG age",
                         "Value #L": "collection_success",
                         "Value #M": "last_success_age",
-                        "Value #A": "installed",
-                        "Value #B": "build_info_value"
+                        "Value #A": "installed"
                       }
                     }
                   }
@@ -3722,18 +3675,6 @@
                   }
                 },
                 "overrides": [
-                  {
-                    "matcher": {
-                      "id": "byName",
-                      "options": "Exporter"
-                    },
-                    "properties": [
-                      {
-                        "id": "custom.width",
-                        "value": 110
-                      }
-                    ]
-                  },
                   {
                     "matcher": {
                       "id": "byRegexp",
@@ -4029,18 +3970,6 @@
                             }
                           ]
                         }
-                      }
-                    ]
-                  },
-                  {
-                    "matcher": {
-                      "id": "byName",
-                      "options": "Exporter"
-                    },
-                    "properties": [
-                      {
-                        "id": "custom.width",
-                        "value": 90
                       }
                     ]
                   },
@@ -4656,8 +4585,8 @@
         "kind": "Panel",
         "spec": {
           "id": 35,
-          "title": "APT Cache Valid",
-          "description": "Share of selected targets with usable apt package index cache",
+          "title": "Last Collection Age",
+          "description": "Average age of the latest framework collection attempt.",
           "links": [],
           "data": {
             "kind": "QueryGroup",
@@ -4675,9 +4604,9 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum(pkg_exporter_upgrade_metrics_valid{job=~\"$job\"}) / count(pkg_exporter_upgrade_metrics_valid{job=~\"$job\"})",
+                        "expr": "avg(time() - pkg_exporter_last_collection_timestamp_seconds{job=~\"$job\"})",
                         "instant": true,
-                        "legendFormat": "valid ratio",
+                        "legendFormat": "age",
                         "range": false
                       }
                     },
@@ -4714,50 +4643,22 @@
               },
               "fieldConfig": {
                 "defaults": {
-                  "unit": "percentunit",
-                  "mappings": [
-                    {
-                      "type": "value",
-                      "options": {
-                        "0": {
-                          "text": "Missing",
-                          "color": "red",
-                          "index": 1
-                        },
-                        "1": {
-                          "text": "OK",
-                          "color": "green",
-                          "index": 0
-                        }
-                      }
-                    },
-                    {
-                      "type": "range",
-                      "options": {
-                        "from": 1e-06,
-                        "to": 0.999999,
-                        "result": {
-                          "text": "Partial",
-                          "color": "yellow",
-                          "index": 2
-                        }
-                      }
-                    }
-                  ],
+                  "unit": "s",
+                  "mappings": [],
                   "thresholds": {
                     "mode": "absolute",
                     "steps": [
                       {
                         "value": 0,
-                        "color": "red"
+                        "color": "green"
                       },
                       {
-                        "value": 1e-06,
+                        "value": 300,
                         "color": "yellow"
                       },
                       {
-                        "value": 1,
-                        "color": "green"
+                        "value": 900,
+                        "color": "red"
                       }
                     ]
                   },
@@ -4794,7 +4695,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "histogram_quantile(0.95, sum by (instance, stage, le) (rate(pkg_exporter_collection_stage_duration_seconds_bucket{job=~\"$job\"}[5m])))",
+                        "expr": "histogram_quantile(0.95, sum by (instance, job, stage, le) (rate(pkg_exporter_collection_stage_duration_seconds_bucket{job=~\"$job\"}[5m])))",
                         "legendFormat": "{{instance}} {{stage}} p95",
                         "range": true
                       }
@@ -4888,7 +4789,7 @@
                       },
                       "spec": {
                         "editorMode": "code",
-                        "expr": "sum by (instance, stage) (rate(pkg_exporter_collection_stage_duration_seconds_sum{job=~\"$job\"}[5m])) / sum by (instance, stage) (rate(pkg_exporter_collection_stage_duration_seconds_count{job=~\"$job\"}[5m]))",
+                        "expr": "sum by (instance, job, stage) (rate(pkg_exporter_collection_stage_duration_seconds_sum{job=~\"$job\"}[5m])) / sum by (instance, job, stage) (rate(pkg_exporter_collection_stage_duration_seconds_count{job=~\"$job\"}[5m]))",
                         "legendFormat": "{{instance}} {{stage}} avg",
                         "range": true
                       }
@@ -5241,6 +5142,900 @@
             }
           }
         }
+      },
+      "panel-40": {
+        "kind": "Panel",
+        "spec": {
+          "id": 40,
+          "title": "Package Inventory",
+          "description": "Per-target package state, apt cache validity, and source freshness",
+          "links": [],
+          "data": {
+            "kind": "QueryGroup",
+            "spec": {
+              "queries": [
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "${DS_PROMETHEUS}"
+                      },
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "pkg_packages_installed_count{job=~\"$job\"}",
+                        "instant": true,
+                        "legendFormat": "__auto",
+                        "range": false,
+                        "format": "table"
+                      }
+                    },
+                    "refId": "A",
+                    "hidden": false
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "${DS_PROMETHEUS}"
+                      },
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "pkg_packages_broken_count{job=~\"$job\"}",
+                        "instant": true,
+                        "legendFormat": "__auto",
+                        "range": false,
+                        "format": "table"
+                      }
+                    },
+                    "refId": "C",
+                    "hidden": false
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "${DS_PROMETHEUS}"
+                      },
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "pkg_packages_upgradable_count{job=~\"$job\",category=\"all\"}",
+                        "instant": true,
+                        "legendFormat": "__auto",
+                        "range": false,
+                        "format": "table"
+                      }
+                    },
+                    "refId": "D",
+                    "hidden": false
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "${DS_PROMETHEUS}"
+                      },
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "pkg_packages_upgradable_count{job=~\"$job\",category=\"security\"}",
+                        "instant": true,
+                        "legendFormat": "__auto",
+                        "range": false,
+                        "format": "table"
+                      }
+                    },
+                    "refId": "E",
+                    "hidden": false
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "${DS_PROMETHEUS}"
+                      },
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "pkg_packages_pinned_updates_count{job=~\"$job\",category=\"all\"}",
+                        "instant": true,
+                        "legendFormat": "__auto",
+                        "range": false,
+                        "format": "table"
+                      }
+                    },
+                    "refId": "F",
+                    "hidden": false
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "${DS_PROMETHEUS}"
+                      },
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "pkg_packages_backports_updates_count{job=~\"$job\"}",
+                        "instant": true,
+                        "legendFormat": "__auto",
+                        "range": false,
+                        "format": "table"
+                      }
+                    },
+                    "refId": "G",
+                    "hidden": false
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "${DS_PROMETHEUS}"
+                      },
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "pkg_reboot_required{job=~\"$job\"}",
+                        "instant": true,
+                        "legendFormat": "__auto",
+                        "range": false,
+                        "format": "table"
+                      }
+                    },
+                    "refId": "H",
+                    "hidden": false
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "${DS_PROMETHEUS}"
+                      },
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "pkg_status_database_up{job=~\"$job\"} * on(instance, job) pkg_status_database_valid{job=~\"$job\"} * on(instance, job) pkg_apt_lists_up{job=~\"$job\"} * on(instance, job) pkg_apt_lists_valid{job=~\"$job\"}",
+                        "instant": true,
+                        "legendFormat": "__auto",
+                        "range": false,
+                        "format": "table"
+                      }
+                    },
+                    "refId": "I",
+                    "hidden": false
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "${DS_PROMETHEUS}"
+                      },
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "time() - (pkg_exporter_apt_lists_last_modified_timestamp_seconds{job=~\"$job\"} > 0)",
+                        "instant": true,
+                        "legendFormat": "__auto",
+                        "range": false,
+                        "format": "table"
+                      }
+                    },
+                    "refId": "J",
+                    "hidden": false
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "${DS_PROMETHEUS}"
+                      },
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "time() - (pkg_exporter_dpkg_status_last_modified_timestamp_seconds{job=~\"$job\"} > 0)",
+                        "instant": true,
+                        "legendFormat": "__auto",
+                        "range": false,
+                        "format": "table"
+                      }
+                    },
+                    "refId": "K",
+                    "hidden": false
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "${DS_PROMETHEUS}"
+                      },
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "pkg_exporter_last_collection_success{job=~\"$job\"}",
+                        "instant": true,
+                        "legendFormat": "__auto",
+                        "range": false,
+                        "format": "table"
+                      }
+                    },
+                    "refId": "L",
+                    "hidden": false
+                  }
+                },
+                {
+                  "kind": "PanelQuery",
+                  "spec": {
+                    "query": {
+                      "kind": "DataQuery",
+                      "group": "prometheus",
+                      "version": "v0",
+                      "datasource": {
+                        "name": "${DS_PROMETHEUS}"
+                      },
+                      "spec": {
+                        "editorMode": "code",
+                        "expr": "time() - (pkg_exporter_last_successful_collection_timestamp_seconds{job=~\"$job\"} > 0)",
+                        "format": "table",
+                        "instant": true,
+                        "legendFormat": "__auto",
+                        "range": false
+                      }
+                    },
+                    "refId": "M",
+                    "hidden": false
+                  }
+                }
+              ],
+              "transformations": [
+                {
+                  "kind": "Transformation",
+                  "group": "joinByField",
+                  "spec": {
+                    "options": {
+                      "byField": "instance",
+                      "mode": "outer"
+                    }
+                  }
+                },
+                {
+                  "kind": "Transformation",
+                  "group": "organize",
+                  "spec": {
+                    "options": {
+                      "excludeByName": {
+                        "Time": true,
+                        "Time 1": true,
+                        "Time 2": true,
+                        "Time 3": true,
+                        "Time 4": true,
+                        "Time 5": true,
+                        "Time 6": true,
+                        "Time 7": true,
+                        "Time 8": true,
+                        "Time 9": true,
+                        "Time 10": true,
+                        "Time 11": true,
+                        "__name__": true,
+                        "__name__ 1": true,
+                        "__name__ 2": true,
+                        "__name__ 3": true,
+                        "__name__ 4": true,
+                        "__name__ 5": true,
+                        "__name__ 6": true,
+                        "__name__ 7": true,
+                        "__name__ 8": true,
+                        "__name__ 9": true,
+                        "__name__ 10": true,
+                        "__name__ 11": true,
+                        "environment 2": true,
+                        "environment 3": true,
+                        "environment 4": true,
+                        "environment 5": true,
+                        "environment 6": true,
+                        "environment 7": true,
+                        "environment 8": true,
+                        "environment 9": true,
+                        "environment 10": true,
+                        "environment 11": true,
+                        "environment 12": true,
+                        "job": true,
+                        "job 1": true,
+                        "job 2": true,
+                        "job 3": true,
+                        "job 4": true,
+                        "job 5": true,
+                        "job 6": true,
+                        "job 7": true,
+                        "job 8": true,
+                        "job 9": true,
+                        "job 10": true,
+                        "job 11": true,
+                        "category": true,
+                        "category 1": true,
+                        "category 2": true,
+                        "category 3": true,
+                        "category 4": true,
+                        "category 5": true,
+                        "Time 12": true,
+                        "__name__ 12": true,
+                        "job 12": true,
+                        "Value #M": false,
+                        "Value #A": false
+                      },
+                      "indexByName": {
+                        "instance": 0,
+                        "collection_success": 1,
+                        "reboot": 2,
+                        "installed": 3,
+                        "updates": 4,
+                        "security": 5,
+                        "pinned": 6,
+                        "broken": 7,
+                        "backports": 8,
+                        "last_success_age": 9,
+                        "Sources": 10,
+                        "APT lists age": 11,
+                        "DPKG age": 12
+                      },
+                      "renameByName": {
+                        "instance": "instance",
+                        "Value": "installed",
+                        "Value #C": "broken",
+                        "Value #D": "updates",
+                        "Value #E": "security",
+                        "Value #F": "pinned",
+                        "Value #G": "backports",
+                        "Value #H": "reboot",
+                        "Value #I": "Sources",
+                        "Value #J": "APT lists age",
+                        "Value #K": "DPKG age",
+                        "Value #L": "collection_success",
+                        "Value #M": "last_success_age",
+                        "Value #A": "installed"
+                      }
+                    }
+                  }
+                }
+              ],
+              "queryOptions": {}
+            }
+          },
+          "vizConfig": {
+            "kind": "VizConfig",
+            "group": "table",
+            "version": "13.0.1",
+            "spec": {
+              "options": {
+                "cellHeight": "sm",
+                "enablePagination": false,
+                "showHeader": true,
+                "sortBy": [
+                  {
+                    "desc": false,
+                    "displayName": "instance"
+                  }
+                ],
+                "footer": {
+                  "reducers": []
+                },
+                "filterable": true
+              },
+              "fieldConfig": {
+                "defaults": {
+                  "thresholds": {
+                    "mode": "absolute",
+                    "steps": [
+                      {
+                        "value": 0,
+                        "color": "green"
+                      }
+                    ]
+                  },
+                  "custom": {
+                    "align": "auto",
+                    "cellOptions": {
+                      "type": "auto"
+                    },
+                    "filterable": true,
+                    "footer": {
+                      "reducers": []
+                    },
+                    "inspect": false
+                  }
+                },
+                "overrides": [
+                  {
+                    "matcher": {
+                      "id": "byRegexp",
+                      "options": "installed|updates|pinned|backports"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.width",
+                        "value": 105
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "broken"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.cellOptions",
+                        "value": {
+                          "type": "color-background"
+                        }
+                      },
+                      {
+                        "id": "thresholds",
+                        "value": {
+                          "mode": "absolute",
+                          "steps": [
+                            {
+                              "value": 0,
+                              "color": "green"
+                            },
+                            {
+                              "value": 1,
+                              "color": "red"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byRegexp",
+                      "options": "updates|security|pinned|backports"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.cellOptions",
+                        "value": {
+                          "type": "color-background"
+                        }
+                      },
+                      {
+                        "id": "thresholds",
+                        "value": {
+                          "mode": "absolute",
+                          "steps": [
+                            {
+                              "value": 0,
+                              "color": "green"
+                            },
+                            {
+                              "value": 1,
+                              "color": "yellow"
+                            },
+                            {
+                              "value": 25,
+                              "color": "orange"
+                            },
+                            {
+                              "value": 50,
+                              "color": "red"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "reboot"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.cellOptions",
+                        "value": {
+                          "type": "color-background"
+                        }
+                      },
+                      {
+                        "id": "thresholds",
+                        "value": {
+                          "mode": "absolute",
+                          "steps": [
+                            {
+                              "value": 0,
+                              "color": "green"
+                            },
+                            {
+                              "value": 1,
+                              "color": "red"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "id": "mappings",
+                        "value": [
+                          {
+                            "type": "value",
+                            "options": {
+                              "0": {
+                                "text": "No",
+                                "color": "green",
+                                "index": 0
+                              },
+                              "1": {
+                                "text": "YES",
+                                "color": "red",
+                                "index": 1
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "collection_success"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.cellOptions",
+                        "value": {
+                          "type": "color-background"
+                        }
+                      },
+                      {
+                        "id": "thresholds",
+                        "value": {
+                          "mode": "absolute",
+                          "steps": [
+                            {
+                              "value": 0,
+                              "color": "red"
+                            },
+                            {
+                              "value": 1,
+                              "color": "green"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "id": "mappings",
+                        "value": [
+                          {
+                            "type": "value",
+                            "options": {
+                              "0": {
+                                "text": "failed",
+                                "color": "red",
+                                "index": 0
+                              },
+                              "1": {
+                                "text": "ok",
+                                "color": "green",
+                                "index": 1
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "Sources"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.cellOptions",
+                        "value": {
+                          "type": "color-background"
+                        }
+                      },
+                      {
+                        "id": "thresholds",
+                        "value": {
+                          "mode": "absolute",
+                          "steps": [
+                            {
+                              "value": 0,
+                              "color": "red"
+                            },
+                            {
+                              "value": 1,
+                              "color": "green"
+                            }
+                          ]
+                        }
+                      },
+                      {
+                        "id": "mappings",
+                        "value": [
+                          {
+                            "type": "value",
+                            "options": {
+                              "0": {
+                                "text": "Problem",
+                                "color": "red",
+                                "index": 0
+                              },
+                              "1": {
+                                "text": "OK",
+                                "color": "green",
+                                "index": 1
+                              }
+                            }
+                          }
+                        ]
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "last_success_age"
+                    },
+                    "properties": [
+                      {
+                        "id": "unit",
+                        "value": "s"
+                      },
+                      {
+                        "id": "custom.cellOptions",
+                        "value": {
+                          "type": "color-background"
+                        }
+                      },
+                      {
+                        "id": "thresholds",
+                        "value": {
+                          "mode": "absolute",
+                          "steps": [
+                            {
+                              "value": 0,
+                              "color": "green"
+                            },
+                            {
+                              "value": 300,
+                              "color": "red"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byRegexp",
+                      "options": "APT lists age|DPKG age"
+                    },
+                    "properties": [
+                      {
+                        "id": "unit",
+                        "value": "s"
+                      },
+                      {
+                        "id": "custom.cellOptions",
+                        "value": {
+                          "type": "color-background"
+                        }
+                      },
+                      {
+                        "id": "thresholds",
+                        "value": {
+                          "mode": "absolute",
+                          "steps": [
+                            {
+                              "value": 0,
+                              "color": "green"
+                            },
+                            {
+                              "value": 172800,
+                              "color": "red"
+                            }
+                          ]
+                        }
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "collection_success"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.width",
+                        "value": 170
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "reboot"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.width",
+                        "value": 100
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "installed"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.width",
+                        "value": 110
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "updates"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.width",
+                        "value": 110
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "security"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.width",
+                        "value": 110
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "pinned"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.width",
+                        "value": 110
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "broken"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.width",
+                        "value": 110
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "backports"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.width",
+                        "value": 120
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "last_success_age"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.width",
+                        "value": 170
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "Sources"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.width",
+                        "value": 120
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "APT lists age"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.width",
+                        "value": 140
+                      }
+                    ]
+                  },
+                  {
+                    "matcher": {
+                      "id": "byName",
+                      "options": "DPKG age"
+                    },
+                    "properties": [
+                      {
+                        "id": "custom.width",
+                        "value": 120
+                      }
+                    ]
+                  }
+                ]
+              }
+            }
+          }
+        }
       }
     },
     "layout": {
@@ -5271,7 +6066,7 @@
                                 "spec": {
                                   "x": 0,
                                   "y": 0,
-                                  "width": 12,
+                                  "width": 6,
                                   "height": 4,
                                   "element": {
                                     "kind": "ElementReference",
@@ -5282,9 +6077,35 @@
                               {
                                 "kind": "GridLayoutItem",
                                 "spec": {
+                                  "x": 6,
+                                  "y": 0,
+                                  "width": 6,
+                                  "height": 4,
+                                  "element": {
+                                    "kind": "ElementReference",
+                                    "name": "panel-4"
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "GridLayoutItem",
+                                "spec": {
                                   "x": 12,
                                   "y": 0,
-                                  "width": 12,
+                                  "width": 6,
+                                  "height": 4,
+                                  "element": {
+                                    "kind": "ElementReference",
+                                    "name": "panel-35"
+                                  }
+                                }
+                              },
+                              {
+                                "kind": "GridLayoutItem",
+                                "spec": {
+                                  "x": 18,
+                                  "y": 0,
+                                  "width": 6,
                                   "height": 4,
                                   "element": {
                                     "kind": "ElementReference",
@@ -5313,7 +6134,7 @@
                                 "spec": {
                                   "x": 0,
                                   "y": 0,
-                                  "width": 3,
+                                  "width": 4,
                                   "height": 4,
                                   "element": {
                                     "kind": "ElementReference",
@@ -5324,9 +6145,9 @@
                               {
                                 "kind": "GridLayoutItem",
                                 "spec": {
-                                  "x": 3,
+                                  "x": 4,
                                   "y": 0,
-                                  "width": 3,
+                                  "width": 4,
                                   "height": 4,
                                   "element": {
                                     "kind": "ElementReference",
@@ -5337,9 +6158,9 @@
                               {
                                 "kind": "GridLayoutItem",
                                 "spec": {
-                                  "x": 6,
+                                  "x": 8,
                                   "y": 0,
-                                  "width": 3,
+                                  "width": 4,
                                   "height": 4,
                                   "element": {
                                     "kind": "ElementReference",
@@ -5350,9 +6171,9 @@
                               {
                                 "kind": "GridLayoutItem",
                                 "spec": {
-                                  "x": 9,
+                                  "x": 12,
                                   "y": 0,
-                                  "width": 3,
+                                  "width": 4,
                                   "height": 4,
                                   "element": {
                                     "kind": "ElementReference",
@@ -5363,9 +6184,9 @@
                               {
                                 "kind": "GridLayoutItem",
                                 "spec": {
-                                  "x": 12,
+                                  "x": 16,
                                   "y": 0,
-                                  "width": 3,
+                                  "width": 4,
                                   "height": 4,
                                   "element": {
                                     "kind": "ElementReference",
@@ -5376,39 +6197,13 @@
                               {
                                 "kind": "GridLayoutItem",
                                 "spec": {
-                                  "x": 15,
+                                  "x": 20,
                                   "y": 0,
-                                  "width": 3,
+                                  "width": 4,
                                   "height": 4,
                                   "element": {
                                     "kind": "ElementReference",
                                     "name": "panel-37"
-                                  }
-                                }
-                              },
-                              {
-                                "kind": "GridLayoutItem",
-                                "spec": {
-                                  "x": 18,
-                                  "y": 0,
-                                  "width": 3,
-                                  "height": 4,
-                                  "element": {
-                                    "kind": "ElementReference",
-                                    "name": "panel-4"
-                                  }
-                                }
-                              },
-                              {
-                                "kind": "GridLayoutItem",
-                                "spec": {
-                                  "x": 21,
-                                  "y": 0,
-                                  "width": 3,
-                                  "height": 4,
-                                  "element": {
-                                    "kind": "ElementReference",
-                                    "name": "panel-35"
                                   }
                                 }
                               },
@@ -5626,6 +6421,48 @@
                                   "element": {
                                     "kind": "ElementReference",
                                     "name": "panel-34"
+                                  }
+                                }
+                              }
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  ]
+                }
+              }
+            }
+          },
+          {
+            "kind": "TabsLayoutTab",
+            "spec": {
+              "title": "Inventory",
+              "layout": {
+                "kind": "RowsLayout",
+                "spec": {
+                  "rows": [
+                    {
+                      "kind": "RowsLayoutRow",
+                      "spec": {
+                        "title": "Inventory",
+                        "collapse": false,
+                        "hideHeader": true,
+                        "fillScreen": false,
+                        "layout": {
+                          "kind": "GridLayout",
+                          "spec": {
+                            "items": [
+                              {
+                                "kind": "GridLayoutItem",
+                                "spec": {
+                                  "x": 0,
+                                  "y": 0,
+                                  "width": 24,
+                                  "height": 20,
+                                  "element": {
+                                    "kind": "ElementReference",
+                                    "name": "panel-40"
                                   }
                                 }
                               }

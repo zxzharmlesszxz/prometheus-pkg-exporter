@@ -14,15 +14,19 @@ import (
 )
 
 type featureMetricState struct {
-	mu                   sync.Mutex
-	lastObservedAttempt  time.Time
-	lastLoggedErrAttempt time.Time
-	hasLoggedError       bool
-	collectionCount      uint64
-	collectionSum        float64
-	stageCollectionCount map[string]uint64
-	stageCollectionSum   map[string]float64
+	mu                     sync.Mutex
+	lastObservedAttempt    time.Time
+	lastLoggedErrAttempt   time.Time
+	hasLoggedError         bool
+	collectionCount        uint64
+	collectionSum          float64
+	collectionBuckets      map[float64]uint64
+	stageCollectionCount   map[string]uint64
+	stageCollectionSum     map[string]float64
+	stageCollectionBuckets map[string]map[float64]uint64
 }
+
+var collectionDurationBuckets = []float64{0.001, 0.002, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1, 2.5, 5, 10, 15, 30, 60, 120}
 
 func NewFeatureMetricHandlers() featurekit.FeatureMetricHandlers[Snapshot] {
 	state := &featureMetricState{}
@@ -35,7 +39,7 @@ func NewFeatureMetricHandlers() featurekit.FeatureMetricHandlers[Snapshot] {
 func (state *featureMetricState) CollectFeatureMetrics(ctx featurekit.FeatureMetricsContext[Snapshot], ch chan<- prometheus.Metric, snapshot Snapshot, _ time.Time) {
 	stats := snapshot.pkg.Stats
 	observePackageSnapshot(state, snapshot)
-	collectionCount, collectionSum, stageCounts, stageSums := packageCollectionObservations(state)
+	collectionCount, collectionSum, collectionBuckets, stageCounts, stageSums, stageBuckets := packageCollectionObservations(state)
 
 	ch <- prometheus.MustNewConstMetric(
 		ctx.Descriptors.Get(metricRebootRequired),
@@ -124,14 +128,14 @@ func (state *featureMetricState) CollectFeatureMetrics(ctx featurekit.FeatureMet
 		ctx.Descriptors.Get(metricPackageCollectionDuration),
 		collectionCount,
 		collectionSum,
-		nil,
+		collectionBuckets,
 	)
 	for _, stage := range sortedKeysUint64(stageCounts) {
 		ch <- prometheus.MustNewConstHistogram(
 			ctx.Descriptors.Get(metricCollectionStageDuration),
 			stageCounts[stage],
 			stageSums[stage],
-			nil,
+			stageBuckets[stage],
 			stage,
 		)
 	}
@@ -189,27 +193,65 @@ func observePackageSnapshot(state *featureMetricState, snapshot Snapshot) {
 	state.lastObservedAttempt = snapshot.pkg.AttemptTime
 	state.collectionCount++
 	state.collectionSum += snapshot.pkg.CollectionDurationSeconds
+	if state.collectionBuckets == nil {
+		state.collectionBuckets = newDurationBuckets()
+	}
+	observeDuration(state.collectionBuckets, snapshot.pkg.CollectionDurationSeconds)
 	if state.stageCollectionCount == nil {
 		state.stageCollectionCount = map[string]uint64{}
 	}
 	if state.stageCollectionSum == nil {
 		state.stageCollectionSum = map[string]float64{}
 	}
+	if state.stageCollectionBuckets == nil {
+		state.stageCollectionBuckets = map[string]map[float64]uint64{}
+	}
 	for stage, duration := range snapshot.pkg.Stats.StageDurations {
 		state.stageCollectionCount[stage]++
 		state.stageCollectionSum[stage] += duration
+		if state.stageCollectionBuckets[stage] == nil {
+			state.stageCollectionBuckets[stage] = newDurationBuckets()
+		}
+		observeDuration(state.stageCollectionBuckets[stage], duration)
 	}
 }
 
-func packageCollectionObservations(state *featureMetricState) (uint64, float64, map[string]uint64, map[string]float64) {
+func packageCollectionObservations(state *featureMetricState) (uint64, float64, map[float64]uint64, map[string]uint64, map[string]float64, map[string]map[float64]uint64) {
 	state.mu.Lock()
 	defer state.mu.Unlock()
 
+	collectionBuckets := cloneDurationBuckets(state.collectionBuckets)
 	stageCounts := make(map[string]uint64, len(state.stageCollectionCount))
 	maps.Copy(stageCounts, state.stageCollectionCount)
 	stageSums := make(map[string]float64, len(state.stageCollectionSum))
 	maps.Copy(stageSums, state.stageCollectionSum)
-	return state.collectionCount, state.collectionSum, stageCounts, stageSums
+	stageBuckets := make(map[string]map[float64]uint64, len(state.stageCollectionBuckets))
+	for stage, buckets := range state.stageCollectionBuckets {
+		stageBuckets[stage] = cloneDurationBuckets(buckets)
+	}
+	return state.collectionCount, state.collectionSum, collectionBuckets, stageCounts, stageSums, stageBuckets
+}
+
+func newDurationBuckets() map[float64]uint64 {
+	buckets := make(map[float64]uint64, len(collectionDurationBuckets))
+	for _, upperBound := range collectionDurationBuckets {
+		buckets[upperBound] = 0
+	}
+	return buckets
+}
+
+func observeDuration(buckets map[float64]uint64, duration float64) {
+	for _, upperBound := range collectionDurationBuckets {
+		if duration <= upperBound {
+			buckets[upperBound]++
+		}
+	}
+}
+
+func cloneDurationBuckets(source map[float64]uint64) map[float64]uint64 {
+	clone := make(map[float64]uint64, len(source))
+	maps.Copy(clone, source)
+	return clone
 }
 
 func sortedKeys(values map[string]int) []string {
