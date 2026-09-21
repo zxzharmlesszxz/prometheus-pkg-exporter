@@ -5,7 +5,7 @@ go 1.27.1
 require (
 	github.com/alecthomas/kingpin/v2 v2.4.0
 	github.com/dsnet/compress v0.0.1
-	github.com/pierrec/lz4/v4 v4.1.29
+	github.com/pierrec/lz4/v4 v4.1.30
 	github.com/prometheus/client_golang v1.24.1
 	github.com/prometheus/client_model v0.6.3
 	github.com/ulikunitz/xz v0.5.16
