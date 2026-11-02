@@ -19,7 +19,7 @@ services:
       - "127.0.0.1:${COMPOSE_EXPORTER_HOST_PORT:-9888}:9888"
 
   prometheus:
-    image: ${PROMETHEUS_IMAGE:-prom/prometheus:v3.14.0}
+    image: ${PROMETHEUS_IMAGE:-prom/prometheus:v3.15.1}
     command:
       - --config.file=/etc/prometheus/prometheus.yml
       - --storage.tsdb.path=/prometheus
@@ -36,7 +36,7 @@ services:
       - ./examples/prometheus/:/etc/prometheus/rules/:ro
 
   grafana:
-    image: ${GRAFANA_IMAGE:-grafana/grafana:13.2}
+    image: ${GRAFANA_IMAGE:-grafana/grafana:13.3}
     ports:
       - "127.0.0.1:3000:3000"
     environment:
